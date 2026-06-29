@@ -1,4 +1,5 @@
 import "./globals.css";
+import ServiceWorkerRegistration from "./service-worker-registration";
 
 export const metadata = {
   metadataBase: new URL("https://www.auramusichub.com"),
@@ -14,12 +15,23 @@ export const metadata = {
     siteName: "AURA Music",
     type: "website",
   },
+  icons: {
+    icon: "/aura-icon.svg",
+    apple: "/aura-icon.svg",
+  },
+};
+
+export const viewport = {
+  themeColor: "#090b0f",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }
