@@ -172,7 +172,7 @@ export default function HomePage() {
       album: uploadForm.album || "Uploads",
       duration: 180,
       plays: 0,
-      color: "#1ed760",
+      color: "#38bdf8",
       cover:
         uploadForm.cover ||
         "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
