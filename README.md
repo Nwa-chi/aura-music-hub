@@ -35,3 +35,17 @@ This app uses static export, so it works well on Cloudflare Pages.
 - Output directory: `out`
 
 After connecting the Git repository in Cloudflare Pages, use those settings for deployment.
+
+## Native Apps
+
+Capacitor projects are included for Android and iOS with app ID
+`com.auramusichub.app`.
+
+```bash
+npm run native:sync
+npm run native:android
+npm run native:ios
+```
+
+Android requires Android Studio and an Android SDK. Building and signing iOS
+requires macOS with Xcode. See `STORE_RELEASE.md` before submitting either app.
