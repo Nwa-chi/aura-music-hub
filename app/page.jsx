@@ -2,17 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BarChart3, Disc3, Download, Globe2, Heart, Home, Library, LogIn, Mic2, Moon,
-  Music2, Pause, Play, Search, Shield, SkipBack, SkipForward, Sun, UploadCloud,
-  User, Volume2, X,
+  BarChart3, CheckCircle2, Disc3, Download, Globe2, Heart, Home, Library, LogIn,
+  Mic2, Moon, Music2, Pause, Play, Search, Shield, SkipBack, SkipForward, Sparkles,
+  Sun, UploadCloud, User, UserPlus, Volume2, X,
 } from "lucide-react";
-import { albums, artists, getArtist, playlists, secondsToTime, songs as seedSongs } from "../lib/music";
+import { artists, getArtist, playlists, secondsToTime, songs as seedSongs } from "../lib/music";
+import { getSupabase, isCloudConfigured } from "../lib/supabase";
 
 const storageKeys = {
   favorites: "aura:favorites",
   uploads: "aura:uploads",
   user: "aura:user",
   language: "aura:language",
+  listeningEvents: "aura:listening-events",
+  followedArtists: "aura:followed-artists",
 };
 
 const legacyKeys = {
@@ -65,9 +68,14 @@ export default function HomePage() {
   const [language, setLanguage] = useState("en");
   const [theme, setTheme] = useState("dark");
   const [uploads, setUploads] = useState([]);
+  const [cloudSongs, setCloudSongs] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [followedArtists, setFollowedArtists] = useState([]);
+  const [listeningEvents, setListeningEvents] = useState([]);
   const [user, setUser] = useState(null);
   const [showAccount, setShowAccount] = useState(false);
+  const [accountStatus, setAccountStatus] = useState("");
+  const [uploadStatus, setUploadStatus] = useState("");
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [currentId, setCurrentId] = useState(seedSongs[0].id);
@@ -76,7 +84,7 @@ export default function HomePage() {
   const [duration, setDuration] = useState(seedSongs[0].duration);
   const [volume, setVolume] = useState(0.72);
   const [selectedArtist, setSelectedArtist] = useState(artists[0].id);
-  const [uploadForm, setUploadForm] = useState({ title: "", artist: "", album: "", genre: "Indie", audio: "", cover: "", lyrics: "" });
+  const [uploadForm, setUploadForm] = useState({ title: "", artist: "", album: "", genre: "Indie", audio: "", cover: "", audioFile: null, coverFile: null, lyrics: "" });
 
   const t = copy[language] || copy.en;
   const navItems = [
@@ -88,6 +96,8 @@ export default function HomePage() {
   useEffect(() => {
     setFavorites(loadJson(storageKeys.favorites, [], legacyKeys.favorites));
     setUploads(loadJson(storageKeys.uploads, [], legacyKeys.uploads));
+    setListeningEvents(loadJson(storageKeys.listeningEvents, []));
+    setFollowedArtists(loadJson(storageKeys.followedArtists, []));
     setUser(loadJson(storageKeys.user, null, legacyKeys.user));
     const savedLanguage = window.localStorage.getItem(storageKeys.language);
     const browserLanguage = window.navigator.language?.slice(0, 2);
@@ -104,6 +114,60 @@ export default function HomePage() {
     return () => { window.removeEventListener("beforeinstallprompt", onPrompt); window.removeEventListener("appinstalled", onInstalled); };
   }, []);
 
+  useEffect(() => {
+    const client = getSupabase();
+    if (!client) return undefined;
+    let active = true;
+
+    async function syncSession(session) {
+      if (!active) return;
+      if (!session?.user) {
+        setUser(null);
+        return;
+      }
+      const metadata = session.user.user_metadata || {};
+      setUser({
+        id: session.user.id,
+        name: metadata.name || metadata.display_name || session.user.email?.split("@")[0] || "Music fan",
+        email: session.user.email,
+        role: metadata.role || "Listener",
+        cloud: true,
+      });
+      const [{ data: savedFavorites }, { data: savedEvents }, { data: savedFollows }] = await Promise.all([
+        client.from("favorites").select("song_id"),
+        client.from("listening_events").select("song_id,event_type,created_at").order("created_at", { ascending: false }).limit(250),
+        client.from("artist_follows").select("artist_id"),
+      ]);
+      if (active && savedFavorites) setFavorites(savedFavorites.map((item) => item.song_id));
+      if (active && savedEvents) setListeningEvents(savedEvents.map((item) => ({ songId: item.song_id, type: item.event_type, at: item.created_at })));
+      if (active && savedFollows) setFollowedArtists(savedFollows.map((item) => item.artist_id));
+    }
+
+    client.auth.getSession().then(({ data }) => syncSession(data.session));
+    const { data: authListener } = client.auth.onAuthStateChange((_event, session) => syncSession(session));
+    return () => { active = false; authListener.subscription.unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    const client = getSupabase();
+    if (!client) return;
+    client.from("songs").select("id,title,artist_name,album,genre,audio_url,cover_url,lyrics,created_at").eq("status", "published").order("created_at", { ascending: false }).then(({ data }) => {
+      if (!data) return;
+      setCloudSongs(data.map((song) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist_name,
+        album: song.album || "Single",
+        genre: song.genre || "Indie",
+        audio: song.audio_url,
+        cover: song.cover_url || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
+        lyrics: song.lyrics || [],
+        duration: 180,
+        plays: 0,
+      })));
+    });
+  }, []);
+
   useEffect(() => { document.documentElement.classList.toggle("light", theme === "light"); }, [theme]);
   useEffect(() => {
     document.documentElement.lang = language;
@@ -112,11 +176,15 @@ export default function HomePage() {
   }, [language]);
   useEffect(() => { window.localStorage.setItem(storageKeys.favorites, JSON.stringify(favorites)); }, [favorites]);
   useEffect(() => { window.localStorage.setItem(storageKeys.uploads, JSON.stringify(uploads)); }, [uploads]);
+  useEffect(() => { window.localStorage.setItem(storageKeys.listeningEvents, JSON.stringify(listeningEvents.slice(0, 250))); }, [listeningEvents]);
+  useEffect(() => { window.localStorage.setItem(storageKeys.followedArtists, JSON.stringify(followedArtists)); }, [followedArtists]);
   useEffect(() => { user ? window.localStorage.setItem(storageKeys.user, JSON.stringify(user)) : window.localStorage.removeItem(storageKeys.user); }, [user]);
 
-  const allSongs = useMemo(() => [...uploads, ...seedSongs], [uploads]);
+  const allSongs = useMemo(() => [...uploads, ...(cloudSongs.length ? cloudSongs : seedSongs)], [uploads, cloudSongs]);
   const currentSong = allSongs.find((song) => song.id === currentId) ?? allSongs[0];
   const currentArtist = currentSong.artistId ? getArtist(currentSong.artistId) : { name: currentSong.artist };
+  const featuredSong = cloudSongs[0] || seedSongs[0];
+  const featuredArtist = featuredSong.artistId ? getArtist(featuredSong.artistId)?.name : featuredSong.artist;
   const filteredSongs = useMemo(() => {
     const term = query.trim().toLowerCase();
     return allSongs.filter((song) => {
@@ -127,21 +195,92 @@ export default function HomePage() {
   }, [allSongs, query, genre]);
   const activeLyricIndex = useMemo(() => (currentSong.lyrics ?? []).reduce((active, line, index) => currentTime >= line.time ? index : active, 0), [currentSong, currentTime]);
 
-  function playSong(id) { setCurrentId(id); setIsPlaying(true); setTimeout(() => audioRef.current?.play().catch(() => setIsPlaying(false)), 50); }
+  const recommendations = useMemo(() => {
+    const genreScores = {};
+    for (const event of listeningEvents) {
+      const song = allSongs.find((item) => item.id === event.songId);
+      if (!song?.genre) continue;
+      const weight = event.type === "favorite" ? 5 : event.type === "complete" ? 3 : event.type === "play" ? 1 : -2;
+      genreScores[song.genre] = (genreScores[song.genre] || 0) + weight;
+    }
+    for (const id of favorites) {
+      const song = allSongs.find((item) => item.id === id);
+      if (song?.genre) genreScores[song.genre] = (genreScores[song.genre] || 0) + 5;
+    }
+    for (const artistId of followedArtists) {
+      for (const song of allSongs.filter((item) => item.artistId === artistId)) {
+        if (song.genre) genreScores[song.genre] = (genreScores[song.genre] || 0) + 4;
+      }
+    }
+    return allSongs
+      .map((song) => ({ song, score: (genreScores[song.genre] || 0) + Math.log10((song.plays || 0) + 10) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(({ song }) => ({
+        title: song.title,
+        description: genreScores[song.genre] ? `Because you listen to ${song.genre}` : `${song.genre || "Fresh"} pick for you`,
+        songId: song.id,
+        image: song.cover,
+      }));
+  }, [allSongs, favorites, followedArtists, listeningEvents]);
+
+  function recordEvent(songId, type) {
+    const event = { songId, type, at: new Date().toISOString() };
+    setListeningEvents((items) => [event, ...items].slice(0, 250));
+    const client = getSupabase();
+    if (client && user?.cloud) client.from("listening_events").insert({ user_id: user.id, song_id: songId, event_type: type });
+  }
+
+  function playSong(id) { recordEvent(id, "play"); setCurrentId(id); setIsPlaying(true); setTimeout(() => audioRef.current?.play().catch(() => setIsPlaying(false)), 50); }
   function togglePlay() {
     if (!audioRef.current) return;
     if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
     else audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
   }
-  function nextSong(direction = 1) {
+  function nextSong(direction = 1, eventType = "skip") {
+    if (eventType) recordEvent(currentSong.id, eventType);
     const index = allSongs.findIndex((song) => song.id === currentSong.id);
     playSong(allSongs[(index + direction + allSongs.length) % allSongs.length].id);
   }
-  function toggleFavorite(id) { setFavorites((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]); }
+  async function toggleFavorite(id) {
+    const isFavorite = favorites.includes(id);
+    setFavorites((items) => isFavorite ? items.filter((item) => item !== id) : [...items, id]);
+    if (!isFavorite) recordEvent(id, "favorite");
+    const client = getSupabase();
+    if (!client || !user?.cloud) return;
+    if (isFavorite) await client.from("favorites").delete().eq("user_id", user.id).eq("song_id", id);
+    else await client.from("favorites").upsert({ user_id: user.id, song_id: id });
+  }
+  async function toggleFollow(artistId) {
+    const isFollowing = followedArtists.includes(artistId);
+    setFollowedArtists((items) => isFollowing ? items.filter((item) => item !== artistId) : [...items, artistId]);
+    const client = getSupabase();
+    if (!client || !user?.cloud) return;
+    if (isFollowing) await client.from("artist_follows").delete().eq("user_id", user.id).eq("artist_id", artistId);
+    else await client.from("artist_follows").upsert({ user_id: user.id, artist_id: artistId });
+  }
   async function installApp() { if (installPrompt) { await installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); } }
-  function submitAccount(event) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
-    setUser({ name: form.get("name") || "Music fan", email: form.get("email") || "listener@example.com", role: "Creator" }); setShowAccount(false);
+  async function submitAccount(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const name = form.get("name") || "Music fan";
+    const email = form.get("email") || "listener@example.com";
+    const client = getSupabase();
+    if (client) {
+      setAccountStatus("Sending your secure sign-in link...");
+      const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin, data: { name } } });
+      setAccountStatus(error ? error.message : "Check your email for the AURA sign-in link.");
+      return;
+    }
+    setUser({ name, email, role: "Creator", cloud: false });
+    setAccountStatus("");
+    setShowAccount(false);
+  }
+
+  async function signOut() {
+    const client = getSupabase();
+    if (client && user?.cloud) await client.auth.signOut();
+    setUser(null);
   }
   function parseLyrics(text) {
     return text.split("\n").map((line, index) => {
@@ -149,17 +288,57 @@ export default function HomePage() {
       return match ? { time: Number(match[1]) * 60 + Number(match[2]), text: match[3] } : { time: index * 15, text: line.trim() };
     }).filter((line) => line.text);
   }
-  function submitUpload(event) {
-    event.preventDefault(); const id = `upload-${Date.now()}`;
+  async function uploadAsset(file, kind) {
+    const client = getSupabase();
+    const { data } = await client.auth.getSession();
+    const response = await fetch("/api/uploads/sign", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${data.session.access_token}` },
+      body: JSON.stringify({ filename: file.name, contentType: file.type, kind }),
+    });
+    const signed = await response.json();
+    if (!response.ok) throw new Error(signed.error || "Upload authorization failed.");
+    const uploadResponse = await fetch(signed.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+    if (!uploadResponse.ok) throw new Error(`The ${kind} upload failed.`);
+    return signed.publicUrl;
+  }
+
+  async function submitUpload(event) {
+    event.preventDefault();
+    setUploadStatus("Preparing your release...");
+    const client = getSupabase();
+    if ((uploadForm.audioFile || uploadForm.coverFile) && (!client || !user?.cloud)) {
+      setUploadStatus("Connect Supabase and sign in to upload files securely. URL uploads still work in prototype mode.");
+      return;
+    }
+    let audioUrl = uploadForm.audio;
+    let coverUrl = uploadForm.cover;
+    try {
+      if (uploadForm.audioFile) audioUrl = await uploadAsset(uploadForm.audioFile, "audio");
+      if (uploadForm.coverFile) coverUrl = await uploadAsset(uploadForm.coverFile, "cover");
+    } catch (error) {
+      setUploadStatus(error.message);
+      return;
+    }
+    const id = `upload-${Date.now()}`;
     const song = {
       id, title: uploadForm.title || "Untitled song", artist: uploadForm.artist || user?.name || "Independent artist",
       album: uploadForm.album || "Uploads", genre: uploadForm.genre, duration: 180, plays: 0, color: "#38bdf8",
-      cover: uploadForm.cover || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
-      audio: uploadForm.audio || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+      cover: coverUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
+      audio: audioUrl || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
       lyrics: parseLyrics(uploadForm.lyrics || "Your first uploaded lyric line\nAdd timestamps like [0:15] Chorus begins"), uploadedAt: new Date().toISOString(),
     };
+    if (client && user?.cloud) {
+      const { error } = await client.from("songs").insert({
+        owner_id: user.id, title: song.title, artist_name: song.artist, album: song.album, genre: song.genre,
+        audio_url: song.audio, cover_url: song.cover, lyrics: song.lyrics, status: "pending",
+      });
+      if (error) { setUploadStatus(error.message); return; }
+      setUploadStatus("Uploaded. Your release is now in the moderation queue.");
+    } else setUploadStatus("Saved in prototype mode on this device.");
     setUploads((items) => [song, ...items]); setCurrentId(id);
-    setUploadForm({ title: "", artist: "", album: "", genre: "Indie", audio: "", cover: "", lyrics: "" }); setView("library");
+    setUploadForm({ title: "", artist: "", album: "", genre: "Indie", audio: "", cover: "", audioFile: null, coverFile: null, lyrics: "" });
+    if (!client) setView("library");
   }
 
   const favoriteSongs = allSongs.filter((song) => favorites.includes(song.id));
@@ -183,44 +362,54 @@ export default function HomePage() {
       <div className="main">
         {view === "home" && <>
           <section className="hero">
-            <div className="hero-copy"><p className="eyebrow">{t.featured}</p><h1>{seedSongs[0].title}</h1><p>{getArtist(seedSongs[0].artistId)?.name} · {seedSongs[0].album}</p><div className="button-row"><button className="primary-btn" onClick={() => playSong(seedSongs[0].id)}><Play size={17} />{t.play}</button><button className="secondary-btn" onClick={() => setView("upload")}><UploadCloud size={17} />{t.upload}</button></div></div>
-            <img src={seedSongs[0].cover} alt="Golden Hour album cover" />
+            <div className="hero-copy"><p className="brand-promise">Stream what moves you.</p><p className="eyebrow">{t.featured}</p><h1>{featuredSong.title}</h1><p>{featuredArtist} · {featuredSong.album}</p><div className="button-row"><button className="primary-btn" onClick={() => playSong(featuredSong.id)}><Play size={17} />{t.play}</button><button className="secondary-btn" onClick={() => setView("upload")}><UploadCloud size={17} />{t.upload}</button></div></div>
+            <img src={featuredSong.cover} alt={`${featuredSong.title} album cover`} />
           </section>
+
+          {!user && <section className="account-cta"><div><Sparkles size={20} /><div><h2>Keep your AURA with you</h2><p>Save favorites, follow artists, and get recommendations that improve as you listen.</p></div></div><button className="primary-btn" onClick={() => setShowAccount(true)}><UserPlus size={18} />Create free account</button></section>}
 
           <label className="search"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} /></label>
           <section className="genre-section" aria-label={t.genres}><div className="genre-pills">{genreOptions.map((item) => <button key={item} className={genre === item ? "active" : ""} onClick={() => setGenre(item)}>{item}</button>)}</div></section>
-          <Recommendations title={t.made} onPlay={playSong} />
+          <Recommendations title={t.made} picks={recommendations} onPlay={playSong} />
           <SongSection title={query || genre !== "All" ? `${t.trending} · ${genre}` : t.trending} songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} />
-          <Albums title={t.albums} onPlay={playSong} />
+          <Albums title={t.albums} songs={allSongs} onPlay={playSong} />
           <Lyrics title={t.lyrics} song={currentSong} artist={currentArtist} activeIndex={activeLyricIndex} />
         </>}
 
         {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists onPlay={playSong} /></>}
-        {view === "artists" && <><PageTitle title={t.artists} subtitle="Meet the voices shaping AURA." /><Artists selectedArtist={selectedArtist} onSelect={setSelectedArtist} onPlay={playSong} /></>}
-        {view === "upload" && <section className="section panel"><PageTitle title="Upload songs and lyrics" subtitle="Use URLs for this Cloudflare Pages prototype. Production audio can move to Cloudflare R2." /><form className="form-grid" onSubmit={submitUpload}>{["title", "artist", "album", "audio", "cover"].map((field) => <label className={field === "audio" || field === "cover" ? "field full" : "field"} key={field}><span>{field === "audio" ? "Audio URL" : field === "cover" ? "Cover image URL" : field}</span><input value={uploadForm[field]} onChange={(event) => setUploadForm({ ...uploadForm, [field]: event.target.value })} /></label>)}<label className="field"><span>Genre</span><select value={uploadForm.genre} onChange={(event) => setUploadForm({ ...uploadForm, genre: event.target.value })}>{genreOptions.slice(1).map((item) => <option key={item}>{item}</option>)}</select></label><label className="field full"><span>Synchronized lyrics</span><textarea value={uploadForm.lyrics} onChange={(event) => setUploadForm({ ...uploadForm, lyrics: event.target.value })} placeholder={'[0:00] First lyric\n[0:15] Second lyric'} /></label><button className="primary-btn" type="submit"><UploadCloud size={18} />Publish upload</button></form></section>}
+        {view === "artists" && <><PageTitle title={t.artists} subtitle="Meet the voices shaping AURA." /><Artists songs={allSongs} useCloudCatalog={cloudSongs.length > 0} selectedArtist={selectedArtist} onSelect={setSelectedArtist} onPlay={playSong} followedArtists={followedArtists} onFollow={toggleFollow} /></>}
+        {view === "upload" && <section className="section panel">
+          <PageTitle title="Upload songs and lyrics" subtitle={isCloudConfigured ? "Secure uploads enter moderation before appearing in AURA." : "Prototype mode is active. Connect Supabase and R2 to accept secure file uploads."} />
+          <form className="form-grid" onSubmit={submitUpload}>
+            {["title", "artist", "album"].map((field) => <label className="field" key={field}><span>{field}</span><input value={uploadForm[field]} onChange={(event) => setUploadForm({ ...uploadForm, [field]: event.target.value })} /></label>)}
+            <label className="field"><span>Genre</span><select value={uploadForm.genre} onChange={(event) => setUploadForm({ ...uploadForm, genre: event.target.value })}>{genreOptions.slice(1).map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label className="field"><span>Audio file</span><input type="file" accept="audio/*" onChange={(event) => setUploadForm({ ...uploadForm, audioFile: event.target.files?.[0] || null })} /></label>
+            <label className="field"><span>Cover artwork</span><input type="file" accept="image/*" onChange={(event) => setUploadForm({ ...uploadForm, coverFile: event.target.files?.[0] || null })} /></label>
+            <label className="field full"><span>Audio URL fallback</span><input value={uploadForm.audio} onChange={(event) => setUploadForm({ ...uploadForm, audio: event.target.value })} /></label>
+            <label className="field full"><span>Cover image URL fallback</span><input value={uploadForm.cover} onChange={(event) => setUploadForm({ ...uploadForm, cover: event.target.value })} /></label>
+            <label className="field full"><span>Synchronized lyrics</span><textarea value={uploadForm.lyrics} onChange={(event) => setUploadForm({ ...uploadForm, lyrics: event.target.value })} placeholder={'[0:00] First lyric\n[0:15] Second lyric'} /></label>
+            {uploadStatus && <p className="form-status full"><CheckCircle2 size={17} />{uploadStatus}</p>}
+            <button className="primary-btn" type="submit"><UploadCloud size={18} />Submit for review</button>
+          </form>
+        </section>}
         {view === "admin" && <section className="section"><PageTitle title="Admin dashboard" subtitle="Catalog, listening, and creator metrics for the platform." /><div className="dashboard"><Metric label="Songs" value={allSongs.length} /><Metric label="Artists" value={artists.length + uploads.length} /><Metric label="Plays" value={totalPlays.toLocaleString()} /><Metric label="Uploads" value={uploads.length} /></div><SongSection title="Moderation queue" songs={uploads.length ? uploads : allSongs.slice(0, 3)} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /></section>}
       </div>
 
       <footer className="player">
-        <audio ref={audioRef} src={currentSong.audio} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || currentSong.duration)} onEnded={() => nextSong(1)} volume={volume} />
+        <audio ref={audioRef} src={currentSong.audio} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || currentSong.duration)} onEnded={() => { recordEvent(currentSong.id, "complete"); nextSong(1, null); }} volume={volume} />
         <div className="mini"><img src={currentSong.cover} alt="" /><div className="track-title"><strong>{currentSong.title}</strong><span>{currentArtist?.name || currentSong.artist}</span></div></div>
         <div className="controls"><div className="control-buttons"><button className="bare-btn" onClick={() => nextSong(-1)} title="Previous"><SkipBack size={18} /></button><button className="play-btn" onClick={togglePlay} title="Play or pause">{isPlaying ? <Pause size={20} /> : <Play size={20} />}</button><button className="bare-btn" onClick={() => nextSong(1)} title="Next"><SkipForward size={18} /></button></div><div className="progress"><span>{secondsToTime(currentTime)}</span><input type="range" min="0" max={duration || 0} value={Math.min(currentTime, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audioRef.current) audioRef.current.currentTime = value; setCurrentTime(value); }} /><span>{secondsToTime(duration)}</span></div></div>
         <label className="volume"><Volume2 size={17} /><input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => { const value = Number(event.target.value); setVolume(value); if (audioRef.current) audioRef.current.volume = value; }} /></label>
       </footer>
 
-      {showAccount && <div className="overlay"><div className="modal"><div className="modal-head"><h2>{user ? "Account" : t.signIn}</h2><button className="icon-btn" onClick={() => setShowAccount(false)} aria-label="Close"><X size={18} /></button></div>{user ? <><p><strong>{user.name}</strong></p><p className="muted">{user.email} · {user.role}</p><button className="secondary-btn" onClick={() => setUser(null)}>Sign out</button></> : <form className="form-grid" onSubmit={submitAccount}><label className="field full"><span>Name</span><input name="name" required /></label><label className="field full"><span>Email</span><input name="email" type="email" required /></label><button className="primary-btn" type="submit"><LogIn size={18} />Continue</button></form>}</div></div>}
+      {showAccount && <div className="overlay"><div className="modal"><div className="modal-head"><h2>{user ? "Your AURA account" : "Keep your music with you"}</h2><button className="icon-btn" onClick={() => { setShowAccount(false); setAccountStatus(""); }} aria-label="Close"><X size={18} /></button></div>{user ? <><p><strong>{user.name}</strong></p><p className="muted">{user.email} · {user.role}</p><p className="account-benefit">Your favorites, artist follows, and recommendations stay connected to this account.</p><button className="secondary-btn" onClick={signOut}>Sign out</button></> : <><p className="account-benefit">Create a free account to save favorites, follow artists, and shape your recommendations.</p><form className="form-grid" onSubmit={submitAccount}><label className="field full"><span>Name</span><input name="name" required /></label><label className="field full"><span>Email</span><input name="email" type="email" required /></label>{accountStatus && <p className="form-status full">{accountStatus}</p>}<button className="primary-btn" type="submit"><LogIn size={18} />{isCloudConfigured ? "Email me a secure link" : "Continue in prototype mode"}</button></form></>}</div></div>}
     </main>
   );
 }
 
 function PageTitle({ title, subtitle }) { return <div className="page-title"><h1>{title}</h1>{subtitle && <p>{subtitle}</p>}</div>; }
 
-function Recommendations({ title, onPlay }) {
-  const picks = [
-    { title: "Morning Lift", description: "Bright pop and warm soul", songId: "golden-hour", image: seedSongs[0].cover },
-    { title: "Night Signals", description: "Electronic songs after dark", songId: "neon-prayer", image: seedSongs[1].cover },
-    { title: "Rhythm Atlas", description: "Percussion from across the map", songId: "rain-dance", image: seedSongs[2].cover },
-  ];
+function Recommendations({ title, picks, onPlay }) {
   return <section className="section"><div className="section-head"><h2>{title}</h2></div><div className="recommend-grid">{picks.map((pick) => <button className="recommend-card" key={pick.title} onClick={() => onPlay(pick.songId)}><img src={pick.image} alt="" /><span><strong>{pick.title}</strong><small>{pick.description}</small></span><span className="recommend-play"><Play size={17} /></span></button>)}</div></section>;
 }
 
@@ -228,8 +417,33 @@ function SongSection({ title, songs, onPlay, favorites, onFavorite, empty, track
   return <section className="section"><div className="section-head"><h2>{title}</h2><span className="muted">{songs.length} {trackLabel}</span></div><div className="track-list">{songs.length === 0 && <div className="empty-state muted">{empty || "No songs found."}</div>}{songs.map((song, index) => { const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist; return <div className="track-row" key={song.id}><span className="track-number">{String(index + 1).padStart(2, "0")}</span><button className="track-main" onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span className="track-title"><strong>{song.title}</strong><small>{artist}</small></span></button><span className="muted hide-mobile">{song.album}</span><span className="muted hide-mobile">{secondsToTime(song.duration)}</span><button className={`bare-btn heart ${favorites.includes(song.id) ? "active" : ""}`} onClick={() => onFavorite(song.id)} title="Favorite"><Heart size={18} fill={favorites.includes(song.id) ? "currentColor" : "none"} /></button><button className="row-play" onClick={() => onPlay(song.id)} title={`Play ${song.title}`}><Play size={16} /></button></div>; })}</div></section>;
 }
 
-function Albums({ title = "Albums", onPlay }) { return <section className="section"><div className="section-head"><h2>{title}</h2><Disc3 size={20} /></div><div className="album-grid">{albums.map((album) => <article className="album-card" key={album.id}><button onClick={() => onPlay(album.songIds[0])}><img src={album.cover} alt="" /><h3>{album.title}</h3><p>{getArtist(album.artistId)?.name} · {album.year}</p></button></article>)}</div></section>; }
+function Albums({ title = "Albums", songs = seedSongs, onPlay }) {
+  const catalog = Array.from(songs.reduce((items, song) => {
+    const key = `${song.album || "Single"}-${song.artistId || song.artist}`;
+    if (!items.has(key)) items.set(key, {
+      id: key,
+      title: song.album || "Single",
+      artist: song.artistId ? getArtist(song.artistId)?.name : song.artist,
+      cover: song.cover,
+      songId: song.id,
+    });
+    return items;
+  }, new Map()).values()).slice(0, 6);
+  return <section className="section"><div className="section-head"><h2>{title}</h2><Disc3 size={20} /></div><div className="album-grid">{catalog.map((album) => <article className="album-card" key={album.id}><button onClick={() => onPlay(album.songId)}><img src={album.cover} alt="" /><h3>{album.title}</h3><p>{album.artist}</p></button></article>)}</div></section>;
+}
 function Playlists({ onPlay }) { return <section className="section"><div className="section-head"><h2>Playlists</h2><Library size={20} /></div><div className="playlist-grid">{playlists.map((playlist) => <button className="playlist-card" key={playlist.id} onClick={() => onPlay(playlist.songIds[0])}><Library size={22} /><strong>{playlist.title}</strong><span>{playlist.description}</span><small>{playlist.songIds.length} songs</small></button>)}</div></section>; }
 function Lyrics({ title, song, artist, activeIndex }) { return <section className="section lyrics-panel"><div className="section-head"><div><h2>{title}</h2><p className="muted">{song.title} · {artist?.name || song.artist}</p></div><Mic2 size={20} /></div><div className="lyrics">{(song.lyrics || []).map((line, index) => <button className={`lyric-line ${index === activeIndex ? "active" : ""}`} key={`${line.time}-${line.text}`}>{line.text}</button>)}</div></section>; }
-function Artists({ selectedArtist, onSelect, onPlay }) { const artist = getArtist(selectedArtist) ?? artists[0]; const artistSongs = seedSongs.filter((song) => song.artistId === artist.id); return <><section className="section"><div className="artist-grid">{artists.map((item) => <button className={`artist-card ${item.id === artist.id ? "active" : ""}`} key={item.id} onClick={() => onSelect(item.id)}><img src={item.image} alt="" /><strong>{item.name}</strong><span>{item.genre}</span></button>)}</div></section><section className="section artist-profile"><img src={artist.image} alt="" /><div><p className="eyebrow">{artist.genre} · {artist.location}</p><h2>{artist.name}</h2><p>{artist.bio}</p><p className="muted">{artist.followers} followers</p><button className="primary-btn" onClick={() => onPlay(artistSongs[0]?.id)}><Play size={18} />Play artist</button></div></section></>; }
+function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, followedArtists, onFollow }) {
+  const artistList = useCloudCatalog ? Array.from(songs.reduce((items, song) => {
+    const name = song.artist || getArtist(song.artistId)?.name;
+    if (!name || items.has(name)) return items;
+    items.set(name, { id: `artist-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, name, genre: song.genre || "Independent", location: "AURA", bio: `Listen to ${name}'s latest releases on AURA.`, image: song.cover, followers: "New" });
+    return items;
+  }, new Map()).values()) : artists;
+  const artist = artistList.find((item) => item.id === selectedArtist) || artistList[0];
+  if (!artist) return <p className="muted">No artists have been published yet.</p>;
+  const artistSongs = songs.filter((song) => song.artistId === artist.id || song.artist === artist.name);
+  const isFollowing = followedArtists.includes(artist.id);
+  return <><section className="section"><div className="artist-grid">{artistList.map((item) => <button className={`artist-card ${item.id === artist.id ? "active" : ""}`} key={item.id} onClick={() => onSelect(item.id)}><img src={item.image} alt="" /><strong>{item.name}</strong><span>{item.genre}</span></button>)}</div></section><section className="section artist-profile"><img src={artist.image} alt="" /><div><p className="eyebrow">{artist.genre} · {artist.location}</p><h2>{artist.name}</h2><p>{artist.bio}</p><p className="muted">{artist.followers} followers</p><div className="button-row"><button className="primary-btn" onClick={() => onPlay(artistSongs[0]?.id)}><Play size={18} />Play artist</button><button className="secondary-btn" onClick={() => onFollow(artist.id)}>{isFollowing ? <CheckCircle2 size={18} /> : <UserPlus size={18} />}{isFollowing ? "Following" : "Follow"}</button></div></div></section></>;
+}
 function Metric({ label, value }) { return <div className="metric"><span>{label}</span><strong>{value}</strong><BarChart3 size={20} /></div>; }
