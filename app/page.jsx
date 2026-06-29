@@ -30,11 +30,21 @@ const copy = {
   ja: { home: "ホーム", library: "ライブラリ", artists: "アーティスト", upload: "アップロード", admin: "管理", signIn: "ログイン", featured: "注目の曲", play: "再生", search: "曲、アーティスト、アルバムを検索", made: "あなたへのおすすめ", trending: "トレンド", albums: "アルバム", lyrics: "歌詞", tracks: "曲", genres: "ジャンルから探す" },
   ar: { home: "الرئيسية", library: "المكتبة", artists: "الفنانون", upload: "رفع", admin: "الإدارة", signIn: "تسجيل الدخول", featured: "المقطع المميز", play: "تشغيل", search: "ابحث عن الأغاني والفنانين والألبومات", made: "مختار لك", trending: "الرائج الآن", albums: "الألبومات", lyrics: "الكلمات", tracks: "مقاطع", genres: "تصفح حسب النوع" },
   hi: { home: "होम", library: "लाइब्रेरी", artists: "कलाकार", upload: "अपलोड", admin: "एडमिन", signIn: "साइन इन", featured: "चुनिंदा गीत", play: "चलाएं", search: "गीत, कलाकार और एल्बम खोजें", made: "आपके लिए", trending: "अभी लोकप्रिय", albums: "एल्बम", lyrics: "बोल", tracks: "गीत", genres: "शैली के अनुसार खोजें" },
+  ig: { home: "Ụlọ", library: "Ọba egwu", artists: "Ndị nka", upload: "Bulite", admin: "Nchịkwa", signIn: "Banye", featured: "Egwu pụrụ iche", play: "Kpọọ", search: "Chọọ egwu, ndị nka na ọba egwu", made: "Emere maka gị", trending: "Na-ewu ewu ugbu a", albums: "Ọba egwu", lyrics: "Okwu egwu", tracks: "egwu", genres: "Chọgharịa ụdị egwu" },
+  it: { home: "Home", library: "Libreria", artists: "Artisti", upload: "Carica", admin: "Admin", signIn: "Accedi", featured: "Brano in evidenza", play: "Riproduci", search: "Cerca brani, artisti e album", made: "Scelto per te", trending: "Di tendenza", albums: "Album", lyrics: "Testi", tracks: "brani", genres: "Sfoglia per genere" },
+  tr: { home: "Ana Sayfa", library: "Kitaplık", artists: "Sanatçılar", upload: "Yükle", admin: "Yönetim", signIn: "Giriş yap", featured: "Öne çıkan parça", play: "Oynat", search: "Şarkı, sanatçı ve albüm ara", made: "Senin İçin", trending: "Şu Anda Popüler", albums: "Albümler", lyrics: "Şarkı sözleri", tracks: "parça", genres: "Türe göre göz at" },
+  srn: { home: "Oso", library: "Muziekverzameling", artists: "Artisti", upload: "Ladi", admin: "Bestuur", signIn: "Kon na ini", featured: "Fesi singi", play: "Prei", search: "Suku singi, artisti nanga album", made: "Gi yu", trending: "Now na fesi", albums: "Album", lyrics: "Singi wortu", tracks: "singi", genres: "Suku na sortu" },
+  pcm: { home: "Home", library: "My Music", artists: "Artistes", upload: "Upload", admin: "Admin", signIn: "Sign in", featured: "Featured song", play: "Play am", search: "Find song, artiste or album", made: "Na For You", trending: "Wetin Dey Hot", albums: "Albums", lyrics: "Song words", tracks: "songs", genres: "Find by music type" },
+  nl: { home: "Home", library: "Bibliotheek", artists: "Artiesten", upload: "Uploaden", admin: "Beheer", signIn: "Inloggen", featured: "Uitgelicht nummer", play: "Afspelen", search: "Zoek nummers, artiesten en albums", made: "Voor jou", trending: "Nu populair", albums: "Albums", lyrics: "Songtekst", tracks: "nummers", genres: "Bladeren op genre" },
+  ln: { home: "Ndako", library: "Bibliotɛkɛ", artists: "Bayembi", upload: "Tinda", admin: "Bokambi", signIn: "Kota", featured: "Loyembo ya ntina", play: "Yoka", search: "Luka nzembo, moyembi to albomi", made: "Mpo na yo", trending: "Oyo ezali koyokana", albums: "Ba albomi", lyrics: "Maloba ya nzembo", tracks: "nzembo", genres: "Luka na lolenge" },
+  yo: { home: "Ilé", library: "Àkójọpọ̀", artists: "Àwọn olórin", upload: "Gbé sókè", admin: "Ìṣàkóso", signIn: "Wọlé", featured: "Orin àkànṣe", play: "Dún", search: "Wá orin, olórin àti àwo orin", made: "Ti a ṣe fún ọ", trending: "Èyí tó gbajúmọ̀", albums: "Àwọn àwo orin", lyrics: "Ọ̀rọ̀ orin", tracks: "orin", genres: "Ṣàwárí nípa irú orin" },
 };
 
 const languages = [
-  ["en", "EN"], ["es", "ES"], ["fr", "FR"], ["pt", "PT"],
-  ["de", "DE"], ["ja", "JA"], ["ar", "AR"], ["hi", "HI"],
+  ["en", "English"], ["pcm", "Nigerian Pidgin"], ["ig", "Igbo"], ["yo", "Yorùbá"],
+  ["es", "Español"], ["it", "Italiano"], ["tr", "Türkçe"], ["nl", "Nederlands"],
+  ["srn", "Sranan Tongo"], ["ln", "Lingála (Congo)"], ["fr", "Français"], ["pt", "Português"],
+  ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
 ];
 const genreOptions = ["All", "Pop", "R&B", "Electronic", "Hip-Hop", "Afrobeats", "Jazz", "Indie"];
 
