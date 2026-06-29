@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Disc3,
+  Download,
   Heart,
   Home,
   Library,
@@ -58,6 +59,8 @@ export default function HomePage() {
   const [favorites, setFavorites] = useState([]);
   const [user, setUser] = useState(null);
   const [showAccount, setShowAccount] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const [currentId, setCurrentId] = useState(seedSongs[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -77,6 +80,29 @@ export default function HomePage() {
     setFavorites(loadJson(storageKeys.favorites, []));
     setUploads(loadJson(storageKeys.uploads, []));
     setUser(loadJson(storageKeys.user, null));
+  }, []);
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    setIsInstalled(standalone);
+
+    function handleInstallPrompt(event) {
+      event.preventDefault();
+      setInstallPrompt(event);
+    }
+
+    function handleInstalled() {
+      setInstallPrompt(null);
+      setIsInstalled(true);
+    }
+
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
   }, []);
 
   useEffect(() => {
@@ -138,6 +164,13 @@ export default function HomePage() {
 
   function toggleFavorite(id) {
     setFavorites((items) => (items.includes(id) ? items.filter((item) => item !== id) : [...items, id]));
+  }
+
+  async function installApp() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
   }
 
   function submitAccount(event) {
@@ -216,6 +249,11 @@ export default function HomePage() {
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search songs, artists, albums" />
           </label>
           <div className="top-actions">
+            {installPrompt && !isInstalled && (
+              <button className="icon-btn" onClick={installApp} title="Install AURA" aria-label="Install AURA">
+                <Download size={20} />
+              </button>
+            )}
             <button className="icon-btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} title="Toggle dark mode">
               {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
             </button>
