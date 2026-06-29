@@ -1,4 +1,4 @@
-const CACHE_NAME = "aura-shell-v1";
+const CACHE_NAME = "aura-shell-v2";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/aura-icon.svg"];
 
 self.addEventListener("install", (event) => {
