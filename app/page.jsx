@@ -35,13 +35,14 @@ const copy = {
   tr: { home: "Ana Sayfa", library: "Kitaplık", artists: "Sanatçılar", upload: "Yükle", admin: "Yönetim", signIn: "Giriş yap", featured: "Öne çıkan parça", play: "Oynat", search: "Şarkı, sanatçı ve albüm ara", made: "Senin İçin", trending: "Şu Anda Popüler", albums: "Albümler", lyrics: "Şarkı sözleri", tracks: "parça", genres: "Türe göre göz at" },
   srn: { home: "Oso", library: "Muziekverzameling", artists: "Artisti", upload: "Ladi", admin: "Bestuur", signIn: "Kon na ini", featured: "Fesi singi", play: "Prei", search: "Suku singi, artisti nanga album", made: "Gi yu", trending: "Now na fesi", albums: "Album", lyrics: "Singi wortu", tracks: "singi", genres: "Suku na sortu" },
   pcm: { home: "Home", library: "My Music", artists: "Artistes", upload: "Upload", admin: "Admin", signIn: "Sign in", featured: "Featured song", play: "Play am", search: "Find song, artiste or album", made: "Na For You", trending: "Wetin Dey Hot", albums: "Albums", lyrics: "Song words", tracks: "songs", genres: "Find by music type" },
+  jam: { home: "Yard", library: "Mi Music", artists: "Artiste Dem", upload: "Upload", admin: "Admin", signIn: "Sign In", featured: "Featured Chune", play: "Play", search: "Search fi chune, artiste or album", made: "Fi Yuh", trending: "A Gwaan Now", albums: "Albums", lyrics: "Chune Words", tracks: "chunes", genres: "Browse by music style" },
   nl: { home: "Home", library: "Bibliotheek", artists: "Artiesten", upload: "Uploaden", admin: "Beheer", signIn: "Inloggen", featured: "Uitgelicht nummer", play: "Afspelen", search: "Zoek nummers, artiesten en albums", made: "Voor jou", trending: "Nu populair", albums: "Albums", lyrics: "Songtekst", tracks: "nummers", genres: "Bladeren op genre" },
   ln: { home: "Ndako", library: "Bibliotɛkɛ", artists: "Bayembi", upload: "Tinda", admin: "Bokambi", signIn: "Kota", featured: "Loyembo ya ntina", play: "Yoka", search: "Luka nzembo, moyembi to albomi", made: "Mpo na yo", trending: "Oyo ezali koyokana", albums: "Ba albomi", lyrics: "Maloba ya nzembo", tracks: "nzembo", genres: "Luka na lolenge" },
   yo: { home: "Ilé", library: "Àkójọpọ̀", artists: "Àwọn olórin", upload: "Gbé sókè", admin: "Ìṣàkóso", signIn: "Wọlé", featured: "Orin àkànṣe", play: "Dún", search: "Wá orin, olórin àti àwo orin", made: "Ti a ṣe fún ọ", trending: "Èyí tó gbajúmọ̀", albums: "Àwọn àwo orin", lyrics: "Ọ̀rọ̀ orin", tracks: "orin", genres: "Ṣàwárí nípa irú orin" },
 };
 
 const languages = [
-  ["en", "English"], ["pcm", "Nigerian Pidgin"], ["ig", "Igbo"], ["yo", "Yorùbá"],
+  ["en", "English"], ["pcm", "Nigerian Pidgin"], ["jam", "Jamaican Patois"], ["ig", "Igbo"], ["yo", "Yorùbá"],
   ["es", "Español"], ["it", "Italiano"], ["tr", "Türkçe"], ["nl", "Nederlands"],
   ["srn", "Sranan Tongo"], ["ln", "Lingála (Congo)"], ["fr", "Français"], ["pt", "Português"],
   ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
