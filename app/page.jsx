@@ -50,7 +50,7 @@ const languages = [
   ["srn", "Sranan Tongo"], ["ln", "Lingála (Congo)"], ["fr", "Français"], ["pt", "Português"],
   ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
 ];
-const genreOptions = ["All", "Pop", "R&B", "Electronic", "Hip-Hop", "Afrobeats", "Jazz", "Indie"];
+const genreOptions = ["All", "Classical", "Ragtime", "Pop", "R&B", "Electronic", "Hip-Hop", "Afrobeats", "Jazz", "Indie"];
 
 function loadJson(key, fallback, legacyKey) {
   if (typeof window === "undefined") return fallback;
@@ -101,7 +101,7 @@ export default function HomePage() {
 
   useEffect(() => {
     setFavorites(loadJson(storageKeys.favorites, [], legacyKeys.favorites));
-    setUploads(loadJson(storageKeys.uploads, [], legacyKeys.uploads));
+    setUploads(loadJson(storageKeys.uploads, [], legacyKeys.uploads).filter((song) => song.audio && !song.audio.includes("soundhelix.com")));
     setListeningEvents(loadJson(storageKeys.listeningEvents, []));
     setFollowedArtists(loadJson(storageKeys.followedArtists, []));
     setUser(loadJson(storageKeys.user, null, legacyKeys.user));
@@ -327,8 +327,8 @@ export default function HomePage() {
       setUploadStatus("Connect Supabase and sign in to upload files securely. URL uploads still work in prototype mode.");
       return;
     }
-    let audioUrl = uploadForm.audio;
-    let coverUrl = uploadForm.cover;
+    let audioUrl = uploadForm.audio.trim();
+    let coverUrl = uploadForm.cover.trim();
     try {
       if (uploadForm.audioFile) audioUrl = await uploadAsset(uploadForm.audioFile, "audio");
       if (uploadForm.coverFile) coverUrl = await uploadAsset(uploadForm.coverFile, "cover");
@@ -336,12 +336,16 @@ export default function HomePage() {
       setUploadStatus(error.message);
       return;
     }
+    if (!audioUrl) {
+      setUploadStatus("Add an audio file or audio URL before submitting.");
+      return;
+    }
     const id = `upload-${Date.now()}`;
     const song = {
       id, title: uploadForm.title || "Untitled song", artist: uploadForm.artist || user?.name || "Independent artist",
       album: uploadForm.album || "Uploads", genre: uploadForm.genre, duration: 180, plays: 0, color: "#38bdf8",
       cover: coverUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
-      audio: audioUrl || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+      audio: audioUrl,
       lyrics: parseLyrics(uploadForm.lyrics || "Your first uploaded lyric line\nAdd timestamps like [0:15] Chorus begins"), uploadedAt: new Date().toISOString(),
     };
     if (client && user?.cloud) {
