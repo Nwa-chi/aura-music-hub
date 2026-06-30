@@ -1,6 +1,8 @@
 # AURA
 
-Every song has a story. AURA is where it gets told, made with Next.js for Cloudflare Pages.
+Every song has a story. AURA is where it gets told.
+
+Built with Next.js and deployed on Cloudflare Pages.
 
 Official music domain: `https://www.auramusichub.com/`
 

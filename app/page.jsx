@@ -19,9 +19,9 @@ const storageKeys = {
 };
 
 const legacyKeys = {
-  favorites: "AURA:favorites",
-  uploads: "AURA:uploads",
-  user: "AURA:user",
+  favorites: ["AURA:favorites", "auralyn:favorites"],
+  uploads: ["AURA:uploads", "auralyn:uploads"],
+  user: ["AURA:user", "auralyn:user"],
 };
 
 const copy = {
@@ -55,7 +55,10 @@ const genreOptions = ["All", "Pop", "R&B", "Electronic", "Hip-Hop", "Afrobeats",
 function loadJson(key, fallback, legacyKey) {
   if (typeof window === "undefined") return fallback;
   try {
-    const value = window.localStorage.getItem(key) ?? (legacyKey ? window.localStorage.getItem(legacyKey) : null);
+    const fallbackKeys = Array.isArray(legacyKey) ? legacyKey : legacyKey ? [legacyKey] : [];
+    const value = [key, ...fallbackKeys]
+      .map((storageKey) => window.localStorage.getItem(storageKey))
+      .find((storedValue) => storedValue !== null);
     return value ? JSON.parse(value) : fallback;
   } catch { return fallback; }
 }
