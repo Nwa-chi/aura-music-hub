@@ -13,7 +13,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "AURA music streaming app for web, Android, and iOS.",
+  "description": "Your music. Your moments. Your AURA.",
   "dependencies": {
     "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^8.4.1",

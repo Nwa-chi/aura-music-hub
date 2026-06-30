@@ -365,7 +365,7 @@ export default function HomePage() {
       <div className="main">
         {view === "home" && <>
           <section className="hero">
-            <div className="hero-copy"><p className="brand-promise">Stream what moves you.</p><p className="eyebrow">{t.featured}</p><h1>{featuredSong.title}</h1><p>{featuredArtist} · {featuredSong.album}</p><div className="button-row"><button className="primary-btn" onClick={() => playSong(featuredSong.id)}><Play size={17} />{t.play}</button><button className="secondary-btn" onClick={() => setView("upload")}><UploadCloud size={17} />{t.upload}</button></div></div>
+            <div className="hero-copy"><p className="brand-promise">Your music. Your moments. Your AURA.</p><p className="eyebrow">{t.featured}</p><h1>{featuredSong.title}</h1><p>{featuredArtist} · {featuredSong.album}</p><div className="button-row"><button className="primary-btn" onClick={() => playSong(featuredSong.id)}><Play size={17} />{t.play}</button><button className="secondary-btn" onClick={() => setView("upload")}><UploadCloud size={17} />{t.upload}</button></div></div>
             <img src={featuredSong.cover} alt={`${featuredSong.title} album cover`} />
           </section>
 
