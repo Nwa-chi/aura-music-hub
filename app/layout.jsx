@@ -4,13 +4,15 @@ import ServiceWorkerRegistration from "./service-worker-registration";
 export const metadata = {
   metadataBase: new URL("https://www.auramusichub.com"),
   title: "AURA",
-  description: "AI-built music streaming app for Cloudflare Pages.",
+  description: "Every song has a story. AURA is where it gets told, made with Next.js for Cloudflare Pages.
+.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "AURA",
-    description: "AI-built music streaming app for Cloudflare Pages.",
+    description: "Every song has a story. AURA is where it gets told, made with Next.js for Cloudflare Pages.
+.",
     url: "https://www.auramusichub.com/",
     siteName: "AURA Music",
     type: "website",
