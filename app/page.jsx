@@ -76,6 +76,7 @@ export default function HomePage() {
   const [followedArtists, setFollowedArtists] = useState([]);
   const [listeningEvents, setListeningEvents] = useState([]);
   const [user, setUser] = useState(null);
+  const [adminVerified, setAdminVerified] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [accountStatus, setAccountStatus] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
@@ -90,10 +91,12 @@ export default function HomePage() {
   const [uploadForm, setUploadForm] = useState({ title: "", artist: "", album: "", genre: "Indie", audio: "", cover: "", audioFile: null, coverFile: null, lyrics: "" });
 
   const t = copy[language] || copy.en;
+  const isAdmin = adminVerified;
+  const roleLabel = user?.role ? `${user.role.slice(0, 1).toUpperCase()}${user.role.slice(1)}` : "Listener";
   const navItems = [
     { id: "home", label: t.home, icon: Home }, { id: "library", label: t.library, icon: Library },
     { id: "artists", label: t.artists, icon: Mic2 }, { id: "upload", label: t.upload, icon: UploadCloud },
-    { id: "admin", label: t.admin, icon: Shield },
+    ...(isAdmin ? [{ id: "admin", label: t.admin, icon: Shield }] : []),
   ];
 
   useEffect(() => {
@@ -126,14 +129,23 @@ export default function HomePage() {
       if (!active) return;
       if (!session?.user) {
         setUser(null);
+        setAdminVerified(false);
         return;
       }
       const metadata = session.user.user_metadata || {};
+      const { data: profile } = await client
+        .from("profiles")
+        .select("display_name,role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (!active) return;
+      const role = profile?.role || "listener";
+      setAdminVerified(role === "admin");
       setUser({
         id: session.user.id,
-        name: metadata.name || metadata.display_name || session.user.email?.split("@")[0] || "Music fan",
+        name: profile?.display_name || metadata.name || metadata.display_name || session.user.email?.split("@")[0] || "Music fan",
         email: session.user.email,
-        role: metadata.role || "Listener",
+        role,
         cloud: true,
       });
       const [{ data: savedFavorites }, { data: savedEvents }, { data: savedFollows }] = await Promise.all([
@@ -172,6 +184,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => { document.documentElement.classList.toggle("light", theme === "light"); }, [theme]);
+  useEffect(() => { if (view === "admin" && !isAdmin) setView("home"); }, [view, isAdmin]);
   useEffect(() => {
     document.documentElement.lang = language;
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
@@ -395,7 +408,7 @@ export default function HomePage() {
             <button className="primary-btn" type="submit"><UploadCloud size={18} />Submit for review</button>
           </form>
         </section>}
-        {view === "admin" && <section className="section"><PageTitle title="Admin dashboard" subtitle="Catalog, listening, and creator metrics for the platform." /><div className="dashboard"><Metric label="Songs" value={allSongs.length} /><Metric label="Artists" value={artists.length + uploads.length} /><Metric label="Plays" value={totalPlays.toLocaleString()} /><Metric label="Uploads" value={uploads.length} /></div><SongSection title="Moderation queue" songs={uploads.length ? uploads : allSongs.slice(0, 3)} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /></section>}
+        {view === "admin" && isAdmin && <section className="section"><PageTitle title="Admin dashboard" subtitle="Catalog, listening, and creator metrics for the platform." /><div className="dashboard"><Metric label="Songs" value={allSongs.length} /><Metric label="Artists" value={artists.length + uploads.length} /><Metric label="Plays" value={totalPlays.toLocaleString()} /><Metric label="Uploads" value={uploads.length} /></div><SongSection title="Moderation queue" songs={uploads.length ? uploads : allSongs.slice(0, 3)} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /></section>}
       </div>
 
       <footer className="player">
@@ -405,7 +418,7 @@ export default function HomePage() {
         <label className="volume"><Volume2 size={17} /><input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => { const value = Number(event.target.value); setVolume(value); if (audioRef.current) audioRef.current.volume = value; }} /></label>
       </footer>
 
-      {showAccount && <div className="overlay"><div className="modal"><div className="modal-head"><h2>{user ? "Your AURA account" : "Keep your music with you"}</h2><button className="icon-btn" onClick={() => { setShowAccount(false); setAccountStatus(""); }} aria-label="Close"><X size={18} /></button></div>{user ? <><p><strong>{user.name}</strong></p><p className="muted">{user.email} · {user.role}</p><p className="account-benefit">Your favorites, artist follows, and recommendations stay connected to this account.</p><button className="secondary-btn" onClick={signOut}>Sign out</button></> : <><p className="account-benefit">Create a free account to save favorites, follow artists, and shape your recommendations.</p><form className="form-grid" onSubmit={submitAccount}><label className="field full"><span>Name</span><input name="name" required /></label><label className="field full"><span>Email</span><input name="email" type="email" required /></label>{accountStatus && <p className="form-status full">{accountStatus}</p>}<button className="primary-btn" type="submit"><LogIn size={18} />{isCloudConfigured ? "Email me a secure link" : "Continue in prototype mode"}</button></form></>}</div></div>}
+      {showAccount && <div className="overlay"><div className="modal"><div className="modal-head"><h2>{user ? "Your AURA account" : "Keep your music with you"}</h2><button className="icon-btn" onClick={() => { setShowAccount(false); setAccountStatus(""); }} aria-label="Close"><X size={18} /></button></div>{user ? <><p><strong>{user.name}</strong></p><p className="muted">{user.email} · {roleLabel}</p>{isAdmin && <p className="form-status"><Shield size={17} />Owner admin access is active for this account.</p>}<p className="account-benefit">Your favorites, artist follows, and recommendations stay connected to this account.</p><button className="secondary-btn" onClick={signOut}>Sign out</button></> : <><p className="account-benefit">Create a free account to save favorites, follow artists, and shape your recommendations.</p><form className="form-grid" onSubmit={submitAccount}><label className="field full"><span>Name</span><input name="name" required /></label><label className="field full"><span>Email</span><input name="email" type="email" required /></label>{accountStatus && <p className="form-status full">{accountStatus}</p>}<button className="primary-btn" type="submit"><LogIn size={18} />{isCloudConfigured ? "Email me a secure link" : "Continue in prototype mode"}</button></form></>}</div></div>}
     </main>
   );
 }
