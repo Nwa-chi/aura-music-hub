@@ -1,6 +1,6 @@
 # AURA
 
-AI-built Spotify-style music app made with Next.js for Cloudflare Pages.
+Every song has a story. AURA is where it gets told, made with Next.js for Cloudflare Pages.
 
 Official music domain: `https://www.auramusichub.com/`
 
