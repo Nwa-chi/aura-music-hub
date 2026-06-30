@@ -19,9 +19,9 @@ const storageKeys = {
 };
 
 const legacyKeys = {
-  favorites: ["AURA:favorites", "auralyn:favorites"],
-  uploads: ["AURA:uploads", "auralyn:uploads"],
-  user: ["AURA:user", "auralyn:user"],
+  favorites: "AURA:favorites",
+  uploads: "AURA:uploads",
+  user: "AURA:user",
 };
 
 const copy = {
