@@ -215,6 +215,7 @@ export default function HomePage() {
   const [view, setView] = useState("home");
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("All");
+  const [collectionSongIds, setCollectionSongIds] = useState([]);
   const [language, setLanguage] = useState("en");
   const [theme, setTheme] = useState("dark");
   const [uploads, setUploads] = useState([]);
@@ -449,9 +450,10 @@ export default function HomePage() {
     return allSongs.filter((song) => {
       const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist;
       const matchesSearch = !term || [song.title, artist, song.album].some((value) => value?.toLowerCase().includes(term));
-      return matchesSearch && (genre === "All" || collectionTagsFor(song).includes(genre));
+      const matchesCollection = genre === "All" || collectionTagsFor(song).includes(genre) || collectionSongIds.includes(song.id);
+      return matchesSearch && matchesCollection;
     });
-  }, [allSongs, query, genre]);
+  }, [allSongs, query, genre, collectionSongIds]);
   const activeLyricIndex = useMemo(() => (currentSong.lyrics ?? []).reduce((active, line, index) => currentTime >= line.time ? index : active, 0), [currentSong, currentTime]);
   const auraMix = useMemo(() => buildAuraMix(allSongs, listeningEvents, favorites, followedArtists), [allSongs, favorites, followedArtists, listeningEvents]);
 
@@ -810,7 +812,7 @@ export default function HomePage() {
           {!user && <section className="account-cta"><div><Sparkles size={20} /><div><h2>Keep your AURA with you</h2><p>Save favorites, follow artists, and get recommendations that improve as you listen.</p></div></div><button className="primary-btn" onClick={() => setShowAccount(true)}><UserPlus size={18} />Create free account</button></section>}
 
           <label className="search"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} /></label>
-          <section className="genre-section" aria-label={t.genres}><div className="genre-pills">{genreOptions.map((item) => <button key={item} className={genre === item ? "active" : ""} onClick={() => setGenre(item)}>{item}</button>)}</div></section>
+          <section className="genre-section" aria-label={t.genres}><div className="genre-pills">{genreOptions.map((item) => <button key={item} className={genre === item ? "active" : ""} onClick={() => { setCollectionSongIds([]); setGenre(item); }}>{item}</button>)}</div></section>
           <AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} />
           <Recommendations title={t.made} picks={recommendations} onPlay={playSong} />
           <SongSection title={query || genre !== "All" ? `${t.trending} · ${genre}` : t.trending} songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} trackLabel={t.tracks} />
@@ -818,7 +820,7 @@ export default function HomePage() {
           <Lyrics title={t.lyrics} song={currentSong} artist={currentArtist} activeIndex={activeLyricIndex} />
         </>}
 
-        {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} onDelete={deleteUploadedSong} canDelete={canDeleteSong} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists songs={allSongs} onPlay={playSong} onSelectTag={(tag) => { setQuery(""); setGenre(tag); setView("home"); }} /></>}
+        {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} onDelete={deleteUploadedSong} canDelete={canDeleteSong} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists songs={allSongs} onPlay={playSong} onSelectTag={(tag, songIds = []) => { setQuery(""); setCollectionSongIds(songIds); setGenre(tag); setView("home"); }} /></>}
         {view === "artists" && <><PageTitle title={t.artists} subtitle="Meet the voices shaping AURA." /><Artists songs={allSongs} useCloudCatalog={cloudSongs.length > 0} selectedArtist={selectedArtist} onSelect={setSelectedArtist} onPlay={playSong} followedArtists={followedArtists} onFollow={toggleFollow} /></>}
         {view === "upload" && <section className="section panel">
           <PageTitle title="Upload songs and lyrics" subtitle={isCloudConfigured ? "Secure uploads enter moderation before appearing in AURA." : "Prototype mode is active. Connect Supabase and R2 to accept secure file uploads."} />
@@ -888,7 +890,7 @@ function Playlists({ songs = seedSongs, onPlay, onSelectTag }) {
     const playlistSongs = songs.filter((song) => playlist.songIds.includes(song.id) || (playlist.tag && collectionTagsFor(song).includes(playlist.tag)));
     return { ...playlist, songs: playlistSongs, firstSongId: playlistSongs[0]?.id || playlist.songIds[0] };
   });
-  return <section className="section"><div className="section-head"><h2>Collection Tags</h2><Library size={20} /></div><div className="playlist-grid">{cards.map((playlist) => <button className="playlist-card" key={playlist.id} onClick={() => playlist.tag ? onSelectTag?.(playlist.tag) : onPlay(playlist.firstSongId)}><Library size={22} /><strong>{playlist.title}</strong><span>{playlist.description}</span><small>{playlist.songs.length || playlist.songIds.length} songs{playlist.tag ? ` · ${playlist.tag}` : ""}</small></button>)}</div></section>;
+  return <section className="section"><div className="section-head"><h2>Collection Tags</h2><Library size={20} /></div><div className="playlist-grid">{cards.map((playlist) => <button className="playlist-card" key={playlist.id} onClick={() => playlist.tag ? onSelectTag?.(playlist.tag, playlist.songIds) : onPlay(playlist.firstSongId)}><Library size={22} /><strong>{playlist.title}</strong><span>{playlist.description}</span><small>{playlist.songs.length || playlist.songIds.length} songs{playlist.tag ? ` · ${playlist.tag}` : ""}</small></button>)}</div></section>;
 }
 function Lyrics({ title, song, artist, activeIndex }) { return <section className="section lyrics-panel"><div className="section-head"><div><h2>{title}</h2><p className="muted">{song.title} · {artist?.name || song.artist}</p></div><Mic2 size={20} /></div><div className="lyrics">{(song.lyrics || []).map((line, index) => <button className={`lyric-line ${index === activeIndex ? "active" : ""}`} key={`${line.time}-${line.text}`}>{line.text}</button>)}</div></section>; }
 function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, followedArtists, onFollow }) {
