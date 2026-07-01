@@ -87,6 +87,24 @@ function isOwnerEmail(email) {
   return Boolean(email && ownerEmails.includes(email.trim().toLowerCase()));
 }
 
+function authRedirectUrl() {
+  if (typeof window === "undefined") return "https://www.auramusichub.com/?auth=confirmed&open=account";
+  const url = new URL(window.location.origin);
+  url.searchParams.set("auth", "confirmed");
+  url.searchParams.set("open", "account");
+  return url.toString();
+}
+
+function cleanAuthReturnUrl() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("auth") && !url.searchParams.has("open")) return;
+  url.searchParams.delete("auth");
+  url.searchParams.delete("open");
+  const cleanPath = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, "", cleanPath || "/");
+}
+
 function uniqueSongsById(items) {
   return Array.from(items.reduce((songs, song) => {
     if (song?.id && !songs.has(song.id)) songs.set(song.id, song);
@@ -334,15 +352,31 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auth") !== "confirmed") return;
+    setShowAccount(true);
+    setAccountStatus(isCloudConfigured
+      ? "Finishing your secure sign-in..."
+      : "Your email was confirmed. Connect Supabase in production to restore the account session here.");
+    if (!isCloudConfigured) cleanAuthReturnUrl();
+  }, []);
+
+  useEffect(() => {
     const client = getSupabase();
     if (!client) return undefined;
     let active = true;
 
     async function syncSession(session) {
       if (!active) return;
+      const authReturn = new URLSearchParams(window.location.search).get("auth") === "confirmed";
       if (!session?.user) {
         setUser(null);
         setAdminVerified(false);
+        if (authReturn) {
+          setShowAccount(true);
+          setAccountStatus("Your email was confirmed. If you do not see your account yet, tap the secure link again from this device.");
+          cleanAuthReturnUrl();
+        }
         return;
       }
       const metadata = session.user.user_metadata || {};
@@ -370,6 +404,12 @@ export default function HomePage() {
         role,
         cloud: true,
       });
+      if (authReturn) {
+        setView("home");
+        setShowAccount(true);
+        setAccountStatus("You are signed in. Welcome back to AURA.");
+        cleanAuthReturnUrl();
+      }
       const [{ data: savedFavorites }, { data: savedEvents }, { data: savedFollows }] = await Promise.all([
         client.from("favorites").select("song_id"),
         client.from("listening_events").select("song_id,event_type,created_at").order("created_at", { ascending: false }).limit(250),
@@ -612,8 +652,8 @@ export default function HomePage() {
     const client = getSupabase();
     if (client) {
       setAccountStatus("Sending your secure sign-in link...");
-      const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin, data: { name } } });
-      setAccountStatus(error ? error.message : "Check your email for the AURA sign-in link.");
+      const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: authRedirectUrl(), data: { name } } });
+      setAccountStatus(error ? error.message : "Check your email. The secure link will bring you straight back into AURA after confirmation.");
       return;
     }
     const ownerEmail = isOwnerEmail(email);

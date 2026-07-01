@@ -7,8 +7,12 @@ The app runs in local prototype mode until Supabase and Cloudflare R2 are config
 1. Create a Supabase project.
 2. Open the SQL editor and run the files in `supabase/migrations` in order: `001_aura_foundation.sql`, `002_secure_owner_admin.sql`, `003_owner_admin_access.sql`, `004_trust_safety_store_readiness.sql`, then `005_owner_private_change_watch.sql`.
 3. In Authentication, set the site URL to `https://www.auramusichub.com`.
-4. Add `https://www.auramusichub.com` and the native callback URLs to the redirect allow list.
-5. Copy the project URL and anon key into Cloudflare Pages as:
+4. Add these redirect URLs to the allow list:
+   - `https://www.auramusichub.com`
+   - `https://www.auramusichub.com/?auth=confirmed&open=account`
+   - Any local preview URL you use for testing, such as `http://127.0.0.1:3006/?auth=confirmed&open=account`
+5. For native App Store or Play Store deep links, add the verified app callback URLs after Apple Associated Domains and Android App Links are configured with your developer account IDs and signing certificate.
+6. Copy the project URL and anon key into Cloudflare Pages as:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `NEXT_PUBLIC_AURA_OWNER_EMAILS=Udeinno01@gmail.com`
