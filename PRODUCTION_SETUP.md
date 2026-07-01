@@ -5,16 +5,19 @@ The app runs in local prototype mode until Supabase and Cloudflare R2 are config
 ## 1. Supabase
 
 1. Create a Supabase project.
-2. Open the SQL editor and run `supabase/migrations/001_aura_foundation.sql`.
+2. Open the SQL editor and run the files in `supabase/migrations` in order: `001_aura_foundation.sql`, `002_secure_owner_admin.sql`, then `003_owner_admin_access.sql`.
 3. In Authentication, set the site URL to `https://www.auramusichub.com`.
 4. Add `https://www.auramusichub.com` and the native callback URLs to the redirect allow list.
 5. Copy the project URL and anon key into Cloudflare Pages as:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_AURA_OWNER_EMAILS=Udeinno01@gmail.com`
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
 
 The anon key is designed for browser use when Row Level Security is enabled. Never expose the Supabase service-role key.
+
+Owner admin access is tied to the configured owner email. Sign into AURA with that same email on your computer and phone to see the Admin dashboard on both devices.
 
 ## 2. Cloudflare R2
 

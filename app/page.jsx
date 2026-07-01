@@ -51,6 +51,14 @@ const languages = [
   ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
 ];
 const genreOptions = ["All", "Afrobeats", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
+const ownerEmails = Array.from(new Set([
+  "udeinno01@gmail.com",
+  ...(process.env.NEXT_PUBLIC_AURA_OWNER_EMAILS || "").split(/[,\s]+/),
+].map((email) => email.trim().toLowerCase()).filter(Boolean)));
+
+function isOwnerEmail(email) {
+  return Boolean(email && ownerEmails.includes(email.trim().toLowerCase()));
+}
 
 function uniqueSongsById(items) {
   return Array.from(items.reduce((songs, song) => {
@@ -267,17 +275,26 @@ export default function HomePage() {
         return;
       }
       const metadata = session.user.user_metadata || {};
-      const { data: profile } = await client
+      const ownerEmail = isOwnerEmail(session.user.email);
+      let { data: profile } = await client
         .from("profiles")
         .select("display_name,role")
         .eq("id", session.user.id)
         .maybeSingle();
+      if (ownerEmail && profile?.role !== "admin") {
+        const { data: ownerProfile } = await client.rpc("ensure_owner_admin");
+        if (ownerProfile) profile = ownerProfile;
+      }
       if (!active) return;
-      const role = profile?.role || "listener";
+      const role = ownerEmail ? "admin" : profile?.role || "listener";
+      const displayName = profile?.display_name || metadata.name || metadata.display_name || session.user.email?.split("@")[0] || "Music fan";
       setAdminVerified(role === "admin");
+      if (ownerEmail && profile?.role !== "admin") {
+        setAdminStatus("Owner access is visible here. Run the latest Supabase owner SQL to activate secure moderation in the database.");
+      }
       setUser({
         id: session.user.id,
-        name: profile?.display_name || metadata.name || metadata.display_name || session.user.email?.split("@")[0] || "Music fan",
+        name: displayName,
         email: session.user.email,
         role,
         cloud: true,
@@ -449,7 +466,9 @@ export default function HomePage() {
       setAccountStatus(error ? error.message : "Check your email for the AURA sign-in link.");
       return;
     }
-    setUser({ name, email, role: "Creator", cloud: false });
+    const ownerEmail = isOwnerEmail(email);
+    setAdminVerified(ownerEmail);
+    setUser({ name, email, role: ownerEmail ? "admin" : "Creator", cloud: false });
     setAccountStatus("");
     setShowAccount(false);
   }
@@ -458,6 +477,7 @@ export default function HomePage() {
     const client = getSupabase();
     if (client && user?.cloud) await client.auth.signOut();
     setUser(null);
+    setAdminVerified(false);
   }
   function parseLyrics(text) {
     return text.split("\n").map((line, index) => {
