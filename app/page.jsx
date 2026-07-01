@@ -24,12 +24,14 @@ const storageKeys = {
   releaseLogs: "aura:release-logs",
   ownerChanges: "aura:owner-changes",
   trendCountry: "aura:trend-country",
+  installState: "aura:install-state",
 };
 
 const legacyKeys = {
   favorites: "AURA:favorites",
   uploads: "AURA:uploads",
   user: "AURA:user",
+  installState: "AURA:install-state",
 };
 
 const copy = {
@@ -342,10 +344,26 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const savedInstallState = loadJson(storageKeys.installState, null, legacyKeys.installState);
     const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-    setIsInstalled(standalone);
-    const onPrompt = (event) => { event.preventDefault(); setInstallPrompt(event); };
-    const onInstalled = () => { setInstallPrompt(null); setIsInstalled(true); };
+    const installed = standalone || savedInstallState === "installed";
+    setIsInstalled(installed);
+    if (installed) window.localStorage.setItem(storageKeys.installState, JSON.stringify("installed"));
+    const onPrompt = (event) => {
+      event.preventDefault();
+      const alreadyInstalled = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true || loadJson(storageKeys.installState, null, legacyKeys.installState) === "installed";
+      if (alreadyInstalled) {
+        setInstallPrompt(null);
+        setIsInstalled(true);
+        return;
+      }
+      setInstallPrompt(event);
+    };
+    const onInstalled = () => {
+      window.localStorage.setItem(storageKeys.installState, JSON.stringify("installed"));
+      setInstallPrompt(null);
+      setIsInstalled(true);
+    };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
     return () => { window.removeEventListener("beforeinstallprompt", onPrompt); window.removeEventListener("appinstalled", onInstalled); };
@@ -643,7 +661,16 @@ export default function HomePage() {
     if (isFollowing) await client.from("artist_follows").delete().eq("user_id", user.id).eq("artist_id", artistId);
     else await client.from("artist_follows").upsert({ user_id: user.id, artist_id: artistId });
   }
-  async function installApp() { if (installPrompt) { await installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); } }
+  async function installApp() {
+    if (isInstalled || !installPrompt) return;
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice?.outcome === "accepted") {
+      window.localStorage.setItem(storageKeys.installState, JSON.stringify("installed"));
+      setIsInstalled(true);
+    }
+    setInstallPrompt(null);
+  }
   async function submitAccount(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);

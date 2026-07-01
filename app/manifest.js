@@ -6,7 +6,7 @@ export default function manifest() {
     short_name: "AURA",
     description: "Discover, play, and collect music with AURA.",
     id: "/",
-    start_url: "/?source=pwa",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     handle_links: "preferred",
