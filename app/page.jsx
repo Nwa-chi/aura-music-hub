@@ -63,6 +63,95 @@ function collectionTagsFor(song) {
   return Array.from(new Set([song?.genre, ...(song?.collectionTags || [])].filter(Boolean)));
 }
 
+function artistNameFor(song) {
+  return song?.artistId ? getArtist(song.artistId)?.name : song?.artist;
+}
+
+function addScore(scores, key, amount) {
+  if (!key || !Number.isFinite(amount)) return;
+  scores[key] = (scores[key] || 0) + amount;
+}
+
+function listeningRecencyBoost(timestamp) {
+  const eventTime = Date.parse(timestamp || "");
+  if (!Number.isFinite(eventTime)) return 1;
+  const ageDays = Math.max(0, (Date.now() - eventTime) / 86400000);
+  if (ageDays <= 2) return 1.35;
+  if (ageDays <= 14) return 1.1;
+  if (ageDays <= 45) return 0.85;
+  return 0.6;
+}
+
+function buildListeningProfile(songs, listeningEvents, favorites, followedArtists) {
+  const byId = new Map(songs.map((song) => [song.id, song]));
+  const songScores = {};
+  const tagScores = {};
+  const artistScores = {};
+  let positiveSignals = 0;
+
+  for (const event of listeningEvents) {
+    const song = byId.get(event.songId);
+    if (!song) continue;
+    const baseWeight = event.type === "favorite" ? 8 : event.type === "complete" ? 5 : event.type === "play" ? 2 : -3;
+    const weight = baseWeight * listeningRecencyBoost(event.at);
+    if (weight > 0) positiveSignals += 1;
+    addScore(songScores, song.id, weight);
+    for (const tag of collectionTagsFor(song)) addScore(tagScores, tag, weight);
+    addScore(artistScores, artistNameFor(song), weight);
+  }
+
+  for (const id of favorites) {
+    const song = byId.get(id);
+    if (!song) continue;
+    positiveSignals += 1;
+    addScore(songScores, song.id, 10);
+    for (const tag of collectionTagsFor(song)) addScore(tagScores, tag, 7);
+    addScore(artistScores, artistNameFor(song), 7);
+  }
+
+  for (const artistId of followedArtists) {
+    for (const song of songs.filter((item) => item.artistId === artistId)) {
+      positiveSignals += 1;
+      addScore(songScores, song.id, 4);
+      for (const tag of collectionTagsFor(song)) addScore(tagScores, tag, 5);
+      addScore(artistScores, artistNameFor(song), 8);
+    }
+  }
+
+  return { songScores, tagScores, artistScores, hasSignals: positiveSignals > 0 };
+}
+
+function buildAuraMix(songs, listeningEvents, favorites, followedArtists) {
+  const profile = buildListeningProfile(songs, listeningEvents, favorites, followedArtists);
+  const ranked = songs
+    .map((song, index) => {
+      const tagScore = collectionTagsFor(song).reduce((sum, tag) => sum + (profile.tagScores[tag] || 0), 0);
+      const artistScore = profile.artistScores[artistNameFor(song)] || 0;
+      const directScore = profile.songScores[song.id] || 0;
+      const freshness = 1 / (index + 2);
+      return { song, score: directScore * 2.2 + tagScore * 1.15 + artistScore * 1.05 + freshness };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const topTags = Object.entries(profile.tagScores)
+    .filter(([tag, score]) => score > 0 && genreOptions.includes(tag))
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag]) => tag)
+    .slice(0, 4);
+  const fallbackTags = ["Afrobeats", "Pop", "R&B", "Hip-Hop", "Gospel"].filter((tag) => songs.some((song) => collectionTagsFor(song).includes(tag)));
+  const tags = topTags.length ? topTags : fallbackTags;
+  const mixSongs = (profile.hasSignals ? ranked : songs.map((song, index) => ({ song, score: songs.length - index }))).slice(0, Math.min(10, songs.length)).map(({ song }) => song);
+
+  return {
+    songs: mixSongs,
+    tags,
+    title: profile.hasSignals && tags.length ? `${tags.slice(0, 2).join(" + ")} Mix` : "Fresh AURA Mix",
+    summary: profile.hasSignals
+      ? `Updated from ${listeningEvents.length} listening signals, your favorites, and followed artists.`
+      : "Start listening, favoriting, and following artists so AURA can shape this mix around you.",
+  };
+}
+
 function loadJson(key, fallback, legacyKey) {
   if (typeof window === "undefined") return fallback;
   try {
@@ -95,6 +184,7 @@ export default function HomePage() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [currentId, setCurrentId] = useState(seedSongs[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playQueue, setPlayQueue] = useState([]);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(seedSongs[0].duration);
   const [volume, setVolume] = useState(0.72);
@@ -222,6 +312,7 @@ export default function HomePage() {
     });
   }, [allSongs, query, genre]);
   const activeLyricIndex = useMemo(() => (currentSong.lyrics ?? []).reduce((active, line, index) => currentTime >= line.time ? index : active, 0), [currentSong, currentTime]);
+  const auraMix = useMemo(() => buildAuraMix(allSongs, listeningEvents, favorites, followedArtists), [allSongs, favorites, followedArtists, listeningEvents]);
 
   const recommendations = useMemo(() => {
     const genreScores = {};
@@ -259,7 +350,18 @@ export default function HomePage() {
     if (client && user?.cloud) client.from("listening_events").insert({ user_id: user.id, song_id: songId, event_type: type });
   }
 
-  function playSong(id) { recordEvent(id, "play"); setCurrentId(id); setIsPlaying(true); setTimeout(() => audioRef.current?.play().catch(() => setIsPlaying(false)), 50); }
+  function playSong(id, queue = null) {
+    if (!id) return;
+    setPlayQueue(Array.isArray(queue) ? queue.filter(Boolean) : []);
+    recordEvent(id, "play");
+    setCurrentId(id);
+    setIsPlaying(true);
+    setTimeout(() => audioRef.current?.play().catch(() => setIsPlaying(false)), 50);
+  }
+  function playAuraMix() {
+    const queue = auraMix.songs.map((song) => song.id);
+    playSong(queue[0], queue);
+  }
   function togglePlay() {
     if (!audioRef.current) return;
     if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
@@ -267,8 +369,11 @@ export default function HomePage() {
   }
   function nextSong(direction = 1, eventType = "skip") {
     if (eventType) recordEvent(currentSong.id, eventType);
-    const index = allSongs.findIndex((song) => song.id === currentSong.id);
-    playSong(allSongs[(index + direction + allSongs.length) % allSongs.length].id);
+    const availableIds = new Set(allSongs.map((song) => song.id));
+    const queue = (playQueue.length ? playQueue : allSongs.map((song) => song.id)).filter((id) => availableIds.has(id));
+    const activeQueue = queue.length ? queue : allSongs.map((song) => song.id);
+    const index = activeQueue.includes(currentSong.id) ? activeQueue.indexOf(currentSong.id) : 0;
+    playSong(activeQueue[(index + direction + activeQueue.length) % activeQueue.length], activeQueue);
   }
   async function toggleFavorite(id) {
     const isFavorite = favorites.includes(id);
@@ -403,13 +508,14 @@ export default function HomePage() {
 
           <label className="search"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} /></label>
           <section className="genre-section" aria-label={t.genres}><div className="genre-pills">{genreOptions.map((item) => <button key={item} className={genre === item ? "active" : ""} onClick={() => setGenre(item)}>{item}</button>)}</div></section>
+          <AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} />
           <Recommendations title={t.made} picks={recommendations} onPlay={playSong} />
           <SongSection title={query || genre !== "All" ? `${t.trending} · ${genre}` : t.trending} songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} />
           <Albums title={t.albums} songs={allSongs} onPlay={playSong} />
           <Lyrics title={t.lyrics} song={currentSong} artist={currentArtist} activeIndex={activeLyricIndex} />
         </>}
 
-        {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists songs={allSongs} onPlay={playSong} onSelectTag={(tag) => { setQuery(""); setGenre(tag); setView("home"); }} /></>}
+        {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists songs={allSongs} onPlay={playSong} onSelectTag={(tag) => { setQuery(""); setGenre(tag); setView("home"); }} /></>}
         {view === "artists" && <><PageTitle title={t.artists} subtitle="Meet the voices shaping AURA." /><Artists songs={allSongs} useCloudCatalog={cloudSongs.length > 0} selectedArtist={selectedArtist} onSelect={setSelectedArtist} onPlay={playSong} followedArtists={followedArtists} onFollow={toggleFollow} /></>}
         {view === "upload" && <section className="section panel">
           <PageTitle title="Upload songs and lyrics" subtitle={isCloudConfigured ? "Secure uploads enter moderation before appearing in AURA." : "Prototype mode is active. Connect Supabase and R2 to accept secure file uploads."} />
@@ -441,6 +547,11 @@ export default function HomePage() {
 }
 
 function PageTitle({ title, subtitle }) { return <div className="page-title"><h1>{title}</h1>{subtitle && <p>{subtitle}</p>}</div>; }
+
+function AutoMix({ mix, onPlayMix, onPlaySong }) {
+  if (!mix?.songs?.length) return null;
+  return <section className="section automix-panel"><div className="automix-copy"><p className="eyebrow">AURA Auto Mix</p><h2>{mix.title}</h2><p>{mix.summary}</p><div className="automix-tags">{mix.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><button className="primary-btn" onClick={onPlayMix}><Play size={17} />Play AURA Mix</button></div><div className="automix-tracks">{mix.songs.slice(0, 5).map((song, index) => <button className="automix-track" key={song.id} onClick={() => onPlaySong(song.id)}><img src={song.cover} alt="" /><span><strong>{song.title}</strong><small>{artistNameFor(song)} · {song.genre}</small></span><em>{String(index + 1).padStart(2, "0")}</em></button>)}</div></section>;
+}
 
 function Recommendations({ title, picks, onPlay }) {
   return <section className="section"><div className="section-head"><h2>{title}</h2></div><div className="recommend-grid">{picks.map((pick) => <button className="recommend-card" key={pick.title} onClick={() => onPlay(pick.songId)}><img src={pick.image} alt="" /><span><strong>{pick.title}</strong><small>{pick.description}</small></span><span className="recommend-play"><Play size={17} /></span></button>)}</div></section>;
