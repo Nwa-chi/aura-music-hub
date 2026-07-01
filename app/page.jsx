@@ -697,6 +697,7 @@ function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, fol
   return <><section className="section"><div className="artist-grid">{artistList.map((item) => <button className={`artist-card ${item.id === artist.id ? "active" : ""}`} key={item.id} onClick={() => onSelect(item.id)}><img src={item.image} alt="" /><strong>{item.name}</strong><span>{item.genre}</span></button>)}</div></section><section className="section artist-profile"><img src={artist.image} alt="" /><div><p className="eyebrow">{artist.genre} · {artist.location}</p><h2>{artist.name}</h2><p>{artist.bio}</p><p className="muted">{artist.followers} followers</p><div className="button-row"><button className="primary-btn" onClick={() => onPlay(artistSongs[0]?.id)}><Play size={18} />Play artist</button><button className="secondary-btn" onClick={() => onFollow(artist.id)}>{isFollowing ? <CheckCircle2 size={18} /> : <UserPlus size={18} />}{isFollowing ? "Following" : "Follow"}</button></div></div></section></>;
 }
 function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay, onModerate }) {
+  const [showPublishPanel, setShowPublishPanel] = useState(false);
   const catalog = songs.map((song) => ({ ...song, status: songStatus(song), sourceName: sourceLabel(song) }));
   const reviewQueue = catalog.filter((song) => ["draft", "pending", "rejected"].includes(song.status) && ["cloud", "local"].includes(songSourceType(song)));
   const pending = reviewQueue.filter((song) => song.status !== "rejected");
@@ -755,6 +756,11 @@ function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay
     { icon: FileCheck2, title: "Rights and metadata", value: missingLyrics.length + rejected.length, detail: "Tracks needing lyrics, rights review, or a cleanup pass." },
     { icon: Megaphone, title: "Promotion candidates", value: published.length, detail: "Published tracks ready for playlists, artist picks, and campaigns." },
   ];
+  const publishBlockers = [
+    pending.length ? `${pending.length} release${pending.length === 1 ? "" : "s"} still waiting for review` : "",
+    rejected.length ? `${rejected.length} rejected release${rejected.length === 1 ? "" : "s"} need correction` : "",
+    missingLyrics.length ? `${missingLyrics.length} track${missingLyrics.length === 1 ? "" : "s"} missing synced lyrics` : "",
+  ].filter(Boolean);
 
   return <section className="section admin-shell">
     <div className="admin-hero">
@@ -762,6 +768,10 @@ function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay
         <p className="eyebrow">Owner control room</p>
         <h1>AURA operations</h1>
         <p>Monitor releases, protect the catalog, and read audience signals before you decide what gets promoted next.</p>
+        <div className="admin-hero-actions">
+          <button className="primary-btn publish-release-btn" onClick={() => setShowPublishPanel(true)}><UploadCloud size={18} />Publish release</button>
+          <span>Manual approval gate is active</span>
+        </div>
       </div>
       <div className="admin-health">
         <span>Catalog health</span>
@@ -771,6 +781,29 @@ function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay
       </div>
     </div>
     {statusMessage && <p className="form-status admin-status"><CheckCircle2 size={17} />{statusMessage}</p>}
+    {showPublishPanel && <section className="admin-panel publish-panel">
+      <div className="section-head">
+        <div>
+          <h2>Publish release</h2>
+          <p className="muted">Use this control before moving a reviewed build or approved catalog update to the public app.</p>
+        </div>
+        <button className="icon-btn" onClick={() => setShowPublishPanel(false)} aria-label="Close publish panel"><X size={18} /></button>
+      </div>
+      <div className="publish-grid">
+        <div className="publish-readiness">
+          <span>Release readiness</span>
+          <strong>{publishBlockers.length ? "Review needed" : "Ready for manual publish"}</strong>
+          <p>{publishBlockers.length ? "Resolve the blockers below before publishing publicly." : "No dashboard blockers found. Build a manual release package and publish it only when you are satisfied."}</p>
+        </div>
+        <div className="publish-checks">
+          {(publishBlockers.length ? publishBlockers : ["Catalog is reviewed", "Manual release package can be created", "Owner approval is required before public deployment"]).map((item) => <p key={item}><CheckCircle2 size={16} />{item}</p>)}
+        </div>
+      </div>
+      <div className="button-row">
+        <button className="primary-btn" onClick={() => setShowPublishPanel(false)}><CheckCircle2 size={18} />Keep manual publish gate</button>
+        <button className="secondary-btn" onClick={() => setShowPublishPanel(false)}>Close</button>
+      </div>
+    </section>}
     <div className="admin-kpi-grid">
       <AdminStatCard icon={Music2} label="Published catalog" value={published.length} detail={`${uniqueArtists.size} artists represented`} />
       <AdminStatCard icon={CalendarClock} label="Release queue" value={pending.length} detail={`${rejected.length} rejected items need owner attention`} tone="warn" />
