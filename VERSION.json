@@ -1,0 +1,10 @@
+{
+  "name": "AURA",
+  "version": "1.0.1",
+  "androidVersionCode": 2,
+  "iosBuildNumber": 2,
+  "releasedAt": null,
+  "preparedAt": "2026-07-01T15:21:20.735Z",
+  "status": "prepared",
+  "notes": "Add saved versioning workflow"
+}

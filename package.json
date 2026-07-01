@@ -1,12 +1,13 @@
 {
   "name": "aura-music-hub",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "preview": "npx serve@latest out",
     "release:manual": "npm run build && node scripts/release-manual.mjs",
+    "version:bump": "node scripts/version-bump.mjs",
     "native:sync": "npm run build && cap sync",
     "native:android": "npm run native:sync && cap open android",
     "native:ios": "npm run native:sync && cap open ios"

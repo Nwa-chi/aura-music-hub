@@ -7,6 +7,9 @@ const outDir = path.join(root, "out");
 const releaseDir = path.join(root, "outputs", "manual-release");
 const webDir = path.join(releaseDir, "web");
 const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+const versionJson = existsSync(path.join(root, "VERSION.json"))
+  ? JSON.parse(await readFile(path.join(root, "VERSION.json"), "utf8"))
+  : {};
 const now = new Date();
 const buildId = `${packageJson.version || "1.0.0"}-${now.toISOString().replace(/[:.]/g, "-")}`;
 
@@ -23,6 +26,8 @@ const releaseNotes = `# AURA Manual Release
 - Build ID: ${buildId}
 - Created: ${now.toUTCString()}
 - App version: ${packageJson.version || "1.0.0"}
+- Android version code: ${versionJson.androidVersionCode || "not set"}
+- iOS build number: ${versionJson.iosBuildNumber || "not set"}
 - App name: AURA
 - Public domain: https://www.auramusichub.com/
 
@@ -68,6 +73,8 @@ const storeMetadata = {
   shortName: "AURA",
   packageId: "com.auramusichub.app",
   version: packageJson.version || "1.0.0",
+  androidVersionCode: versionJson.androidVersionCode || null,
+  iosBuildNumber: versionJson.iosBuildNumber || null,
   category: "Music",
   website: "https://www.auramusichub.com/",
   supportEmail: "",

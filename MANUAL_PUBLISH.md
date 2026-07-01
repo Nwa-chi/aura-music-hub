@@ -8,6 +8,14 @@ Pushing code to GitHub can trigger Cloudflare Pages automatically. This manual w
 
 ## Create A Manual Release Package
 
+Before creating a package, prepare the version:
+
+```bash
+npm run version:bump -- patch "Describe this update"
+```
+
+Then build the review package:
+
 ```bash
 npm run release:manual
 ```
@@ -18,6 +26,8 @@ This creates:
 - `outputs/manual-release/release-notes.md` - what changed and what to test
 - `outputs/manual-release/publish-checklist.md` - final go/no-go checklist
 - `outputs/manual-release/store-metadata.json` - starter metadata for app-store listings
+
+The version is saved in `VERSION.json` and `VERSION_HISTORY.md`.
 
 ## Publish To Cloudflare Manually
 

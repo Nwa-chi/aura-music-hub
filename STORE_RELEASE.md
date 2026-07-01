@@ -15,6 +15,18 @@ The native projects, branded icons, splash screens, and Capacitor configuration
 are generated and synchronized. Signing credentials are intentionally not stored
 in this repository.
 
+## Versioning
+
+Prepare every software update with:
+
+```bash
+npm run version:bump -- patch "Describe the update"
+```
+
+Use `patch`, `minor`, `major`, or an exact version like `1.2.3`.
+The command updates the web version, Android version code/name, iOS build
+number/marketing version, `VERSION.json`, and `VERSION_HISTORY.md`.
+
 ## Build Android
 
 1. Install Android Studio and Android SDK 36.
