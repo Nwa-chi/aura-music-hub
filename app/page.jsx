@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity, Airplay, BarChart3, Bluetooth, CalendarClock, Cast, CheckCircle2, Clock3, Disc3, Download, FileCheck2, Globe2,
+  Activity, Airplay, BarChart3, CalendarClock, Cast, CheckCircle2, Clock3, Disc3, Download, FileCheck2, Globe2,
   Flag, Heart, Home, Library, LifeBuoy, ListChecks, LogIn, Megaphone, Mic2, Moon, Music2, Pause, Play, Radio,
   Search, Share2, Shield, SkipBack, SkipForward, Sparkles, Sun, Trash2, TrendingUp, UploadCloud, User, UserPlus,
   Users, Volume2, X,
@@ -256,6 +256,12 @@ function isVideoSong(song) {
   return Boolean(song?.video);
 }
 
+function isIOSPlaybackDevice() {
+  if (typeof navigator === "undefined") return false;
+  const userAgent = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/.test(userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 function shortDate(value) {
   if (!value) return "Today";
   const date = new Date(value);
@@ -318,6 +324,7 @@ export default function HomePage() {
   const [duration, setDuration] = useState(seedSongs[0].duration);
   const [volume, setVolume] = useState(0.72);
   const [deviceStatus, setDeviceStatus] = useState("");
+  const [supportsAirPlay, setSupportsAirPlay] = useState(false);
   const [selectedArtist, setSelectedArtist] = useState(artists[0].id);
   const [uploadForm, setUploadForm] = useState({ title: "", artist: "", album: "", genre: "Indie", audio: "", video: "", cover: "", audioFile: null, videoFile: null, coverFile: null, lyrics: "" });
 
@@ -606,6 +613,15 @@ export default function HomePage() {
   useEffect(() => {
     if (mediaRef.current) mediaRef.current.volume = volume;
   }, [currentSong?.id, volume]);
+
+  useEffect(() => {
+    const updateAirPlaySupport = () => {
+      setSupportsAirPlay(isIOSPlaybackDevice() && Boolean(mediaRef.current?.webkitShowPlaybackTargetPicker));
+    };
+    updateAirPlaySupport();
+    const timer = window.setTimeout(updateAirPlaySupport, 150);
+    return () => window.clearTimeout(timer);
+  }, [currentSong?.id]);
 
   const recommendations = useMemo(() => {
     const genreScores = {};
@@ -938,29 +954,18 @@ export default function HomePage() {
     return source === "local" || (source === "cloud" && user?.cloud && song.ownerId === user.id);
   }
 
-  async function chooseAudioOutput() {
-    const media = mediaRef.current;
-    if (media?.setSinkId && navigator.mediaDevices?.selectAudioOutput) {
-      try {
-        const device = await navigator.mediaDevices.selectAudioOutput();
-        await media.setSinkId(device.deviceId);
-        setDeviceStatus(`Playing through ${device.label || "selected output"}.`);
-      } catch {
-        setDeviceStatus("Audio output selection was cancelled.");
-      }
-      return;
-    }
-    setDeviceStatus("Pair Bluetooth in your phone or computer settings, then play AURA through that device.");
-  }
-
   async function openAirPlay() {
     const media = mediaRef.current;
+    if (!isIOSPlaybackDevice()) {
+      setDeviceStatus("AirPlay appears only on iPhone and iPad when the browser supports it.");
+      return;
+    }
     if (media?.webkitShowPlaybackTargetPicker) {
       media.webkitShowPlaybackTargetPicker();
       setDeviceStatus("Choose an AirPlay device.");
       return;
     }
-    setDeviceStatus("AirPlay is available through Safari/iOS playback controls when the device supports it.");
+    setDeviceStatus("AirPlay is available through iOS playback controls when the device supports it.");
   }
 
   async function openCast() {
@@ -1057,7 +1062,7 @@ export default function HomePage() {
       <footer className="player">
         {!isVideoSong(currentSong) && <audio key={currentSong.id} ref={mediaRef} src={currentMediaUrl} x-webkit-airplay="allow" onTimeUpdate={syncMediaTime} onLoadedMetadata={syncMediaDuration} onEnded={completeCurrentSong} />}
         <div className="mini"><img src={currentSong.cover} alt="" /><div className="track-title"><strong>{currentSong.title}</strong><span>{currentArtist?.name || currentSong.artist}{isVideoSong(currentSong) ? " · Video" : ""}</span></div></div>
-        <div className="controls"><div className="control-buttons"><button className="bare-btn" onClick={() => nextSong(-1)} title="Previous"><SkipBack size={18} /></button><button className="play-btn" onClick={togglePlay} title="Play or pause">{isPlaying ? <Pause size={20} /> : <Play size={20} />}</button><button className="bare-btn" onClick={() => nextSong(1)} title="Next"><SkipForward size={18} /></button><button className="bare-btn device-btn" onClick={chooseAudioOutput} title="Bluetooth or audio output" aria-label="Bluetooth or audio output"><Bluetooth size={17} /></button><button className="bare-btn device-btn" onClick={openAirPlay} title="AirPlay" aria-label="AirPlay"><Airplay size={17} /></button><button className="bare-btn device-btn" onClick={openCast} title="Cast" aria-label="Cast"><Cast size={17} /></button></div><div className="progress"><span>{secondsToTime(currentTime)}</span><input type="range" min="0" max={duration || 0} value={Math.min(currentTime, duration || 0)} onChange={(event) => seekTo(Number(event.target.value))} /><span>{secondsToTime(duration)}</span></div>{deviceStatus && <span className="device-status">{deviceStatus}</span>}</div>
+        <div className="controls"><div className="control-buttons"><button className="bare-btn" onClick={() => nextSong(-1)} title="Previous"><SkipBack size={18} /></button><button className="play-btn" onClick={togglePlay} title="Play or pause">{isPlaying ? <Pause size={20} /> : <Play size={20} />}</button><button className="bare-btn" onClick={() => nextSong(1)} title="Next"><SkipForward size={18} /></button>{supportsAirPlay && <button className="bare-btn device-btn" onClick={openAirPlay} title="AirPlay" aria-label="AirPlay"><Airplay size={17} /></button>}<button className="bare-btn device-btn" onClick={openCast} title="Cast" aria-label="Cast"><Cast size={17} /></button></div><div className="progress"><span>{secondsToTime(currentTime)}</span><input type="range" min="0" max={duration || 0} value={Math.min(currentTime, duration || 0)} onChange={(event) => seekTo(Number(event.target.value))} /><span>{secondsToTime(duration)}</span></div>{deviceStatus && <span className="device-status">{deviceStatus}</span>}</div>
         <label className="volume"><Volume2 size={17} /><input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => { const value = Number(event.target.value); setVolume(value); if (mediaRef.current) mediaRef.current.volume = value; }} /></label>
       </footer>
 
