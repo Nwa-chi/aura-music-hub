@@ -50,7 +50,7 @@ const languages = [
   ["srn", "Sranan Tongo"], ["ln", "Lingála (Congo)"], ["fr", "Français"], ["pt", "Português"],
   ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
 ];
-const genreOptions = ["All", "Afrobeats", "Pop", "R&B", "Hip-Hop", "Electronic", "Jazz", "Indie"];
+const genreOptions = ["All", "Afrobeats", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
 
 function loadJson(key, fallback, legacyKey) {
   if (typeof window === "undefined") return fallback;
@@ -434,7 +434,7 @@ function Recommendations({ title, picks, onPlay }) {
 }
 
 function SongSection({ title, songs, onPlay, favorites, onFavorite, empty, trackLabel = "tracks" }) {
-  return <section className="section"><div className="section-head"><h2>{title}</h2><span className="muted">{songs.length} {trackLabel}</span></div><div className="track-list">{songs.length === 0 && <div className="empty-state muted">{empty || "No songs found."}</div>}{songs.map((song, index) => { const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist; return <div className="track-row" key={song.id}><span className="track-number">{String(index + 1).padStart(2, "0")}</span><button className="track-main" onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span className="track-title"><strong>{song.title}</strong><small>{artist}</small></span></button><span className="muted hide-mobile track-meta"><span>{song.album}</span>{song.source && <a href={song.source} target="_blank" rel="noreferrer">{song.license || "Source"} · FMA</a>}</span><span className="muted hide-mobile">{secondsToTime(song.duration)}</span><button className={`bare-btn heart ${favorites.includes(song.id) ? "active" : ""}`} onClick={() => onFavorite(song.id)} title="Favorite"><Heart size={18} fill={favorites.includes(song.id) ? "currentColor" : "none"} /></button><button className="row-play" onClick={() => onPlay(song.id)} title={`Play ${song.title}`}><Play size={16} /></button></div>; })}</div></section>;
+  return <section className="section"><div className="section-head"><h2>{title}</h2><span className="muted">{songs.length} {trackLabel}</span></div><div className="track-list">{songs.length === 0 && <div className="empty-state muted">{empty || "No songs found."}</div>}{songs.map((song, index) => { const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist; return <div className="track-row" key={song.id}><span className="track-number">{String(index + 1).padStart(2, "0")}</span><button className="track-main" onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span className="track-title"><strong>{song.title}</strong><small>{artist}</small></span></button><span className="muted hide-mobile track-meta"><span>{song.album}</span>{song.source && <a href={song.source} target="_blank" rel="noreferrer">{song.license || "Source"} · {song.sourceLabel || "Source"}</a>}</span><span className="muted hide-mobile">{secondsToTime(song.duration)}</span><button className={`bare-btn heart ${favorites.includes(song.id) ? "active" : ""}`} onClick={() => onFavorite(song.id)} title="Favorite"><Heart size={18} fill={favorites.includes(song.id) ? "currentColor" : "none"} /></button><button className="row-play" onClick={() => onPlay(song.id)} title={`Play ${song.title}`}><Play size={16} /></button></div>; })}</div></section>;
 }
 
 function Albums({ title = "Albums", songs = seedSongs, onPlay }) {
