@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BarChart3, CheckCircle2, Clock3, Disc3, Download, Globe2, Heart, Home, Library, ListChecks, LogIn,
-  Mic2, Moon, Music2, Pause, Play, Radio, Search, Shield, SkipBack, SkipForward, Sparkles,
-  Sun, UploadCloud, User, UserPlus, Volume2, X,
+  Activity, BarChart3, CalendarClock, CheckCircle2, Clock3, Disc3, Download, FileCheck2, Globe2,
+  Heart, Home, Library, ListChecks, LogIn, Megaphone, Mic2, Moon, Music2, Pause, Play, Radio, Search, Shield,
+  SkipBack, SkipForward, Sparkles, Sun, TrendingUp, UploadCloud, User, UserPlus, Users, Volume2, X,
 } from "lucide-react";
 import { artists, getArtist, playlists, secondsToTime, songs as seedSongs } from "../lib/music";
 import { getSupabase, isCloudConfigured } from "../lib/supabase";
@@ -246,7 +246,9 @@ export default function HomePage() {
     setUploads(loadJson(storageKeys.uploads, [], legacyKeys.uploads).filter((song) => song.audio && !song.audio.includes("soundhelix.com")));
     setListeningEvents(loadJson(storageKeys.listeningEvents, []));
     setFollowedArtists(loadJson(storageKeys.followedArtists, []));
-    setUser(loadJson(storageKeys.user, null, legacyKeys.user));
+    const savedUser = loadJson(storageKeys.user, null, legacyKeys.user);
+    setUser(savedUser);
+    setAdminVerified(savedUser?.role === "admin" || isOwnerEmail(savedUser?.email));
     const savedLanguage = window.localStorage.getItem(storageKeys.language);
     const browserLanguage = window.navigator.language?.slice(0, 2);
     setLanguage(savedLanguage || (copy[browserLanguage] ? browserLanguage : "en"));
@@ -692,11 +694,36 @@ function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, fol
 function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay, onModerate }) {
   const catalog = songs.map((song) => ({ ...song, status: songStatus(song), sourceName: sourceLabel(song) }));
   const reviewQueue = catalog.filter((song) => ["draft", "pending", "rejected"].includes(song.status) && ["cloud", "local"].includes(songSourceType(song)));
+  const pending = reviewQueue.filter((song) => song.status !== "rejected");
   const published = catalog.filter((song) => song.status === "published");
   const rejected = catalog.filter((song) => song.status === "rejected");
   const cloudRows = catalog.filter((song) => songSourceType(song) === "cloud");
   const uniqueArtists = new Set(catalog.map((song) => artistNameFor(song)).filter(Boolean));
   const songById = new Map(catalog.map((song) => [song.id, song]));
+  const missingLyrics = catalog.filter((song) => !song.lyrics?.length);
+  const releaseReadiness = catalog.length ? Math.round(catalog.reduce((sum, song) => {
+    const checks = [song.title, artistNameFor(song), song.audio, song.cover, song.lyrics?.length];
+    return sum + checks.filter(Boolean).length / checks.length;
+  }, 0) / catalog.length * 100) : 0;
+  const signalStats = listeningEvents.reduce((items, event) => {
+    const stat = items[event.songId] || { plays: 0, completes: 0, favorites: 0, skips: 0, total: 0 };
+    if (event.type === "play") stat.plays += 1;
+    if (event.type === "complete") stat.completes += 1;
+    if (event.type === "favorite") stat.favorites += 1;
+    if (event.type === "skip") stat.skips += 1;
+    stat.total += 1;
+    items[event.songId] = stat;
+    return items;
+  }, {});
+  const topTracks = catalog
+    .map((song) => ({ song, ...(signalStats[song.id] || { plays: 0, completes: 0, favorites: 0, skips: 0, total: 0 }) }))
+    .sort((a, b) => (b.plays + b.completes * 2 + b.favorites * 3 - b.skips) - (a.plays + a.completes * 2 + a.favorites * 3 - a.skips))
+    .slice(0, 5);
+  const plays = Object.values(signalStats).reduce((sum, item) => sum + item.plays, 0);
+  const completes = Object.values(signalStats).reduce((sum, item) => sum + item.completes, 0);
+  const skips = Object.values(signalStats).reduce((sum, item) => sum + item.skips, 0);
+  const completionRate = plays ? Math.round(completes / plays * 100) : 0;
+  const skipRate = plays ? Math.round(skips / plays * 100) : 0;
   const genreSignals = listeningEvents.reduce((items, event) => {
     const song = songById.get(event.songId);
     if (!song || event.type === "skip") return items;
@@ -711,9 +738,117 @@ function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay
     return items;
   }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const recentActivity = listeningEvents.slice(0, 6).map((event) => ({ ...event, song: songById.get(event.songId) })).filter((event) => event.song);
+  const activeGenres = topGenres.length ? topGenres : fallbackGenres;
+  const sourceRows = ["cloud", "local", "starter"].map((source) => ({
+    source,
+    label: source === "cloud" ? "Cloud catalog" : source === "local" ? "Device uploads" : "Starter catalog",
+    count: catalog.filter((song) => songSourceType(song) === source).length,
+  })).filter((row) => row.count > 0);
+  const maxSourceCount = Math.max(...sourceRows.map((row) => row.count), 1);
+  const operations = [
+    { icon: ListChecks, title: "Review release queue", value: pending.length, detail: "Songs waiting for a publish or reject decision." },
+    { icon: FileCheck2, title: "Rights and metadata", value: missingLyrics.length + rejected.length, detail: "Tracks needing lyrics, rights review, or a cleanup pass." },
+    { icon: Megaphone, title: "Promotion candidates", value: published.length, detail: "Published tracks ready for playlists, artist picks, and campaigns." },
+  ];
 
-  return <section className="section admin-shell"><PageTitle title="Owner dashboard" subtitle="Review uploads, control the catalog, and read listener signals from one place." />{statusMessage && <p className="form-status admin-status"><CheckCircle2 size={17} />{statusMessage}</p>}<div className="dashboard"><Metric label="Published songs" value={published.length} /><Metric label="Pending review" value={reviewQueue.filter((song) => song.status === "pending").length} /><Metric label="Cloud songs" value={cloudRows.length} /><Metric label="Listening signals" value={listeningEvents.length} /></div><div className="admin-layout"><section className="admin-panel admin-wide"><div className="section-head"><div><h2>Review queue</h2><p className="muted">Approve clean uploads or reject songs that need more rights, metadata, or audio fixes.</p></div><ListChecks size={20} /></div><div className="admin-list">{reviewQueue.length === 0 && <p className="empty-state muted">No uploads are waiting for review.</p>}{reviewQueue.map((song) => <AdminSongRow key={song.id} song={song} onPlay={onPlay} onModerate={onModerate} />)}</div></section><section className="admin-panel"><div className="section-head"><h2>Listener signals</h2><Radio size={20} /></div><div className="insight-list">{recentActivity.length === 0 && <p className="muted">No listener activity yet. Plays, skips, favorites, and completed songs will appear here.</p>}{recentActivity.map((event) => <div className="insight-row" key={`${event.songId}-${event.type}-${event.at}`}><span>{event.type}</span><strong>{event.song.title}</strong><small>{shortDate(event.at)}</small></div>)}</div></section><section className="admin-panel"><div className="section-head"><h2>Top genres</h2><BarChart3 size={20} /></div><div className="insight-list">{(topGenres.length ? topGenres : fallbackGenres).map(([genre, count]) => <div className="insight-bar" key={genre}><span>{genre}</span><meter min="0" max={Math.max(...(topGenres.length ? topGenres : fallbackGenres).map(([, value]) => value), 1)} value={count} /><strong>{count}</strong></div>)}</div></section><section className="admin-panel admin-wide"><div className="section-head"><div><h2>Catalog control</h2><p className="muted">{catalog.length} songs · {uniqueArtists.size} artists · {uploads.length} device uploads · {rejected.length} rejected</p></div><Clock3 size={20} /></div><div className="admin-list compact">{catalog.map((song) => <AdminSongRow key={song.id} song={song} onPlay={onPlay} onModerate={onModerate} compact />)}</div></section></div></section>;
+  return <section className="section admin-shell">
+    <div className="admin-hero">
+      <div>
+        <p className="eyebrow">Owner control room</p>
+        <h1>AURA operations</h1>
+        <p>Monitor releases, protect the catalog, and read audience signals before you decide what gets promoted next.</p>
+      </div>
+      <div className="admin-health">
+        <span>Catalog health</span>
+        <strong>{releaseReadiness}%</strong>
+        <meter min="0" max="100" value={releaseReadiness} />
+        <small>{published.length} published · {pending.length} pending · {rejected.length} rejected</small>
+      </div>
+    </div>
+    {statusMessage && <p className="form-status admin-status"><CheckCircle2 size={17} />{statusMessage}</p>}
+    <div className="admin-kpi-grid">
+      <AdminStatCard icon={Music2} label="Published catalog" value={published.length} detail={`${uniqueArtists.size} artists represented`} />
+      <AdminStatCard icon={CalendarClock} label="Release queue" value={pending.length} detail={`${rejected.length} rejected items need owner attention`} tone="warn" />
+      <AdminStatCard icon={Users} label="Listener signals" value={listeningEvents.length} detail={`${completionRate}% completion · ${skipRate}% skips`} />
+      <AdminStatCard icon={Shield} label="Cloud-controlled" value={cloudRows.length} detail="Rows backed by Supabase moderation" />
+    </div>
+    <div className="admin-layout">
+      <section className="admin-panel admin-wide">
+        <div className="section-head">
+          <div>
+            <h2>Release pipeline</h2>
+            <p className="muted">A publish desk for uploaded songs, rejected items, and campaign-ready releases.</p>
+          </div>
+          <ListChecks size={20} />
+        </div>
+        <div className="pipeline-grid">
+          <AdminPipelineCard title="Needs review" songs={pending} empty="No pending releases." onPlay={onPlay} />
+          <AdminPipelineCard title="Needs correction" songs={rejected} empty="No rejected releases." onPlay={onPlay} />
+          <AdminPipelineCard title="Published" songs={published.slice(0, 4)} empty="No published releases yet." onPlay={onPlay} />
+        </div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Operations</h2><Activity size={20} /></div>
+        <div className="action-list">{operations.map((item) => <AdminActionItem key={item.title} item={item} />)}</div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Audience pulse</h2><Radio size={20} /></div>
+        <div className="insight-list">{recentActivity.length === 0 && <p className="muted">No listener activity yet. Plays, skips, favorites, and completed songs will appear here.</p>}{recentActivity.map((event) => <div className="insight-row" key={`${event.songId}-${event.type}-${event.at}`}><span>{event.type}</span><strong>{event.song.title}</strong><small>{shortDate(event.at)}</small></div>)}</div>
+      </section>
+      <section className="admin-panel admin-wide">
+        <div className="section-head">
+          <div>
+            <h2>Moderation desk</h2>
+            <p className="muted">Preview, publish, or reject uploaded tracks with source and status context.</p>
+          </div>
+          <Shield size={20} />
+        </div>
+        <div className="admin-list">{reviewQueue.length === 0 && <p className="empty-state muted">No uploads are waiting for review.</p>}{reviewQueue.map((song) => <AdminSongRow key={song.id} song={song} onPlay={onPlay} onModerate={onModerate} />)}</div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Top tracks</h2><TrendingUp size={20} /></div>
+        <div className="track-insight-list">{topTracks.map((item) => <AdminTrackInsight key={item.song.id} item={item} onPlay={onPlay} />)}</div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Genre demand</h2><BarChart3 size={20} /></div>
+        <div className="insight-list">{activeGenres.map(([genre, count]) => <div className="insight-bar" key={genre}><span>{genre}</span><meter min="0" max={Math.max(...activeGenres.map(([, value]) => value), 1)} value={count} /><strong>{count}</strong></div>)}</div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Catalog sources</h2><Disc3 size={20} /></div>
+        <div className="insight-list">{sourceRows.map((row) => <div className="source-row" key={row.source}><span>{row.label}</span><meter min="0" max={maxSourceCount} value={row.count} /><strong>{row.count}</strong></div>)}</div>
+      </section>
+      <section className="admin-panel admin-wide">
+        <div className="section-head">
+          <div>
+            <h2>Catalog command table</h2>
+            <p className="muted">{catalog.length} songs · {uploads.length} device uploads · {missingLyrics.length} tracks missing synced lyrics.</p>
+          </div>
+          <Clock3 size={20} />
+        </div>
+        <div className="admin-list compact">{catalog.map((song) => <AdminSongRow key={song.id} song={song} onPlay={onPlay} onModerate={onModerate} compact />)}</div>
+      </section>
+    </div>
+  </section>;
 }
+
+function AdminStatCard({ icon: Icon, label, value, detail, tone = "brand" }) {
+  return <article className={`admin-stat-card ${tone}`}><div><span>{label}</span><strong>{value}</strong></div><Icon size={22} /><small>{detail}</small></article>;
+}
+
+function AdminActionItem({ item }) {
+  const Icon = item.icon;
+  return <article className="action-item"><span className="action-icon"><Icon size={17} /></span><div><strong>{item.title}</strong><small>{item.detail}</small></div><em>{item.value}</em></article>;
+}
+
+function AdminPipelineCard({ title, songs, empty, onPlay }) {
+  return <article className="pipeline-card"><div className="pipeline-head"><strong>{title}</strong><span>{songs.length}</span></div><div className="pipeline-stack">{songs.length === 0 && <p className="muted">{empty}</p>}{songs.slice(0, 4).map((song) => <button key={song.id} onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span><strong>{song.title}</strong><small>{artistNameFor(song)} · {song.genre || "Unsorted"}</small></span></button>)}</div></article>;
+}
+
+function AdminTrackInsight({ item, onPlay }) {
+  const score = item.plays + item.completes * 2 + item.favorites * 3 - item.skips;
+  return <button className="track-insight" onClick={() => onPlay(item.song.id)}><img src={item.song.cover} alt="" /><span><strong>{item.song.title}</strong><small>{artistNameFor(item.song)} · {item.song.genre || "Unsorted"}</small></span><em>{Math.max(score, 0)}</em></button>;
+}
+
 function AdminSongRow({ song, onPlay, onModerate, compact = false }) {
   const status = songStatus(song);
   const source = songSourceType(song);
