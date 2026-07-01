@@ -57,7 +57,7 @@ const languages = [
   ["srn", "Sranan Tongo"], ["ln", "Lingála (Congo)"], ["fr", "Français"], ["pt", "Português"],
   ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
 ];
-const genreOptions = ["All", "Afrobeats", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
+const genreOptions = ["All", "Afrobeats", "Highlife", "Blues", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
 const ownerEmails = Array.from(new Set([
   "udeinno01@gmail.com",
   ...(process.env.NEXT_PUBLIC_AURA_OWNER_EMAILS || "").split(/[,\s]+/),
@@ -153,7 +153,7 @@ function buildAuraMix(songs, listeningEvents, favorites, followedArtists) {
     .sort((a, b) => b[1] - a[1])
     .map(([tag]) => tag)
     .slice(0, 4);
-  const fallbackTags = ["Afrobeats", "Pop", "R&B", "Hip-Hop", "Gospel"].filter((tag) => songs.some((song) => collectionTagsFor(song).includes(tag)));
+  const fallbackTags = ["Afrobeats", "Highlife", "Blues", "Pop", "R&B", "Hip-Hop", "Gospel"].filter((tag) => songs.some((song) => collectionTagsFor(song).includes(tag)));
   const tags = topTags.length ? topTags : fallbackTags;
   const mixSongs = (profile.hasSignals ? ranked : songs.map((song, index) => ({ song, score: songs.length - index }))).slice(0, Math.min(10, songs.length)).map(({ song }) => song);
 
