@@ -14,7 +14,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "description": "Your music. Your moments. Your AURA.",
   "dependencies": {
     "@capacitor/android": "^8.4.1",

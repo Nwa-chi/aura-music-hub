@@ -56,6 +56,9 @@ Publishing does not require hiring another developer. The owner needs:
 Use the same legal owner or organization identity in the store listings, privacy
 policy, support information, and payment/tax profiles.
 
+See `DEVELOPER_ACCOUNTS_AND_LICENSES.md` for the exact ownership, license, Apple,
+Google, GitHub, Cloudflare, Supabase, and domain details to keep together.
+
 ## Required Before Submission
 
 - Replace the local mock sign-in with real authentication and add in-app account

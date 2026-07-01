@@ -53,3 +53,6 @@ npm run native:ios
 
 Android requires Android Studio and an Android SDK. Building and signing iOS
 requires macOS with Xcode. See `STORE_RELEASE.md` before submitting either app.
+
+Ownership, app-license, music-license, and developer-account requirements are
+tracked in `DEVELOPER_ACCOUNTS_AND_LICENSES.md`.
