@@ -23,6 +23,7 @@ const storageKeys = {
   auditLogs: "aura:audit-logs",
   releaseLogs: "aura:release-logs",
   ownerChanges: "aura:owner-changes",
+  trendCountry: "aura:trend-country",
 };
 
 const legacyKeys = {
@@ -58,6 +59,25 @@ const languages = [
   ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
 ];
 const genreOptions = ["All", "Afrobeats", "Highlife", "Blues", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
+const trendingCountries = [
+  { code: "global", label: "Global", genres: { Pop: 5, "Hip-Hop": 5, "R&B": 4, Afrobeats: 4, Gospel: 2, Blues: 2, Highlife: 1 } },
+  { code: "ng", label: "Nigeria", genres: { Afrobeats: 9, Gospel: 6, "Hip-Hop": 5, "R&B": 4, Highlife: 3, Pop: 2 } },
+  { code: "gh", label: "Ghana", genres: { Highlife: 9, Afrobeats: 7, Gospel: 4, "Hip-Hop": 3, "R&B": 3 } },
+  { code: "us", label: "United States", genres: { "Hip-Hop": 9, "R&B": 8, Pop: 7, Gospel: 4, Blues: 4, Afrobeats: 2 } },
+  { code: "gb", label: "United Kingdom", genres: { Pop: 8, "R&B": 7, "Hip-Hop": 7, Afrobeats: 5, Gospel: 2 } },
+  { code: "ca", label: "Canada", genres: { Pop: 8, "R&B": 7, "Hip-Hop": 6, Gospel: 3, Afrobeats: 2 } },
+  { code: "za", label: "South Africa", genres: { Afrobeats: 6, Gospel: 6, "Hip-Hop": 5, Pop: 4, "R&B": 4 } },
+  { code: "jm", label: "Jamaica", genres: { Gospel: 6, Afrobeats: 5, "R&B": 4, "Hip-Hop": 4, Pop: 3 } },
+  { code: "br", label: "Brazil", genres: { Pop: 8, Gospel: 5, "Hip-Hop": 4, "R&B": 4, Afrobeats: 3 } },
+  { code: "fr", label: "France", genres: { Pop: 8, "Hip-Hop": 7, "R&B": 5, Afrobeats: 4, Gospel: 2 } },
+  { code: "de", label: "Germany", genres: { Pop: 8, "Hip-Hop": 6, "R&B": 4, Gospel: 3, Afrobeats: 2 } },
+  { code: "nl", label: "Netherlands", genres: { Pop: 8, "Hip-Hop": 6, "R&B": 5, Afrobeats: 4, Gospel: 2 } },
+  { code: "it", label: "Italy", genres: { Pop: 9, "R&B": 4, "Hip-Hop": 4, Gospel: 3, Afrobeats: 2 } },
+  { code: "es", label: "Spain", genres: { Pop: 9, "R&B": 5, "Hip-Hop": 4, Afrobeats: 3, Gospel: 2 } },
+  { code: "tr", label: "Turkey", genres: { Pop: 9, "Hip-Hop": 5, "R&B": 4, Gospel: 2, Afrobeats: 2 } },
+  { code: "sr", label: "Suriname", genres: { Pop: 7, Afrobeats: 6, Gospel: 5, "R&B": 4, "Hip-Hop": 3 } },
+  { code: "cd", label: "Congo", genres: { Gospel: 7, Afrobeats: 6, "R&B": 5, Pop: 4, "Hip-Hop": 3 } },
+];
 const ownerEmails = Array.from(new Set([
   "udeinno01@gmail.com",
   ...(process.env.NEXT_PUBLIC_AURA_OWNER_EMAILS || "").split(/[,\s]+/),
@@ -167,6 +187,28 @@ function buildAuraMix(songs, listeningEvents, favorites, followedArtists) {
   };
 }
 
+function buildCountryTrending(songs, listeningEvents, countryCode) {
+  const country = trendingCountries.find((item) => item.code === countryCode) || trendingCountries[0];
+  const genreWeights = country.genres || {};
+  const signalScores = listeningEvents.reduce((items, event) => {
+    if (event.country && event.country !== country.code && country.code !== "global") return items;
+    const weight = event.type === "favorite" ? 8 : event.type === "complete" ? 5 : event.type === "play" ? 3 : event.type === "skip" ? -4 : 0;
+    items[event.songId] = (items[event.songId] || 0) + weight;
+    return items;
+  }, {});
+  return songs
+    .map((song) => {
+      const tags = collectionTagsFor(song);
+      const marketScore = tags.reduce((sum, tag) => sum + (genreWeights[tag] || 0), 0);
+      const publicScore = Math.log10((song.plays || 0) + 10) * 3;
+      const recencyScore = song.createdAt || song.uploadedAt ? 2 : 0;
+      const signalScore = signalScores[song.id] || 0;
+      return { song, score: marketScore + publicScore + recencyScore + signalScore };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
+
 function songStatus(song) {
   return song?.status || (song?.uploadedAt ? "pending" : "published");
 }
@@ -215,6 +257,7 @@ export default function HomePage() {
   const [view, setView] = useState("home");
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("All");
+  const [trendCountry, setTrendCountry] = useState("global");
   const [collectionSongIds, setCollectionSongIds] = useState([]);
   const [language, setLanguage] = useState("en");
   const [theme, setTheme] = useState("dark");
@@ -272,8 +315,10 @@ export default function HomePage() {
     setUser(savedUser);
     setAdminVerified(savedUser?.role === "admin" || isOwnerEmail(savedUser?.email));
     const savedLanguage = window.localStorage.getItem(storageKeys.language);
+    const savedTrendCountry = window.localStorage.getItem(storageKeys.trendCountry);
     const browserLanguage = window.navigator.language?.slice(0, 2);
     setLanguage(savedLanguage || (copy[browserLanguage] ? browserLanguage : "en"));
+    if (trendingCountries.some((country) => country.code === savedTrendCountry)) setTrendCountry(savedTrendCountry);
     setStorageReady(true);
   }, []);
 
@@ -387,6 +432,7 @@ export default function HomePage() {
   useEffect(() => { window.localStorage.setItem(storageKeys.auditLogs, JSON.stringify(auditLogs.slice(0, 250))); }, [auditLogs]);
   useEffect(() => { window.localStorage.setItem(storageKeys.releaseLogs, JSON.stringify(releaseLogs.slice(0, 100))); }, [releaseLogs]);
   useEffect(() => { window.localStorage.setItem(storageKeys.ownerChanges, JSON.stringify(ownerChangeEvents.slice(0, 250))); }, [ownerChangeEvents]);
+  useEffect(() => { window.localStorage.setItem(storageKeys.trendCountry, trendCountry); }, [trendCountry]);
   useEffect(() => {
     if (!storageReady) return;
     user ? window.localStorage.setItem(storageKeys.user, JSON.stringify(user)) : window.localStorage.removeItem(storageKeys.user);
@@ -456,6 +502,7 @@ export default function HomePage() {
   }, [allSongs, query, genre, collectionSongIds]);
   const activeLyricIndex = useMemo(() => (currentSong.lyrics ?? []).reduce((active, line, index) => currentTime >= line.time ? index : active, 0), [currentSong, currentTime]);
   const auraMix = useMemo(() => buildAuraMix(allSongs, listeningEvents, favorites, followedArtists), [allSongs, favorites, followedArtists, listeningEvents]);
+  const countryTrending = useMemo(() => buildCountryTrending(allSongs, listeningEvents, trendCountry), [allSongs, listeningEvents, trendCountry]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -507,7 +554,7 @@ export default function HomePage() {
   }, [allSongs, favorites, followedArtists, listeningEvents]);
 
   function recordEvent(songId, type) {
-    const event = { songId, type, at: new Date().toISOString() };
+    const event = { songId, type, country: trendCountry, at: new Date().toISOString() };
     setListeningEvents((items) => [event, ...items].slice(0, 250));
     const client = getSupabase();
     if (client && user?.cloud) client.from("listening_events").insert({ user_id: user.id, song_id: songId, event_type: type });
@@ -814,8 +861,9 @@ export default function HomePage() {
           <label className="search"><Search size={19} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} /></label>
           <section className="genre-section" aria-label={t.genres}><div className="genre-pills">{genreOptions.map((item) => <button key={item} className={genre === item ? "active" : ""} onClick={() => { setCollectionSongIds([]); setGenre(item); }}>{item}</button>)}</div></section>
           <AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} />
+          <CountryTrending songs={countryTrending} country={trendCountry} countries={trendingCountries} onCountry={setTrendCountry} onPlay={(id) => playSong(id, countryTrending.map((item) => item.song.id))} />
           <Recommendations title={t.made} picks={recommendations} onPlay={playSong} />
-          <SongSection title={query || genre !== "All" ? `${t.trending} · ${genre}` : t.trending} songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} trackLabel={t.tracks} />
+          <SongSection title={query || genre !== "All" ? `Catalog · ${genre}` : "Catalog"} songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} trackLabel={t.tracks} />
           <Albums title={t.albums} songs={allSongs} onPlay={playSong} />
           <Lyrics title={t.lyrics} song={currentSong} artist={currentArtist} activeIndex={activeLyricIndex} />
         </>}
@@ -857,6 +905,31 @@ function PageTitle({ title, subtitle }) { return <div className="page-title"><h1
 function AutoMix({ mix, onPlayMix, onPlaySong }) {
   if (!mix?.songs?.length) return null;
   return <section className="section automix-panel"><div className="automix-copy"><p className="eyebrow">AURA Auto Mix</p><h2>{mix.title}</h2><p>{mix.summary}</p><div className="automix-tags">{mix.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><button className="primary-btn" onClick={onPlayMix}><Play size={17} />Play AURA Mix</button></div><div className="automix-tracks">{mix.songs.slice(0, 5).map((song, index) => <button className="automix-track" key={song.id} onClick={() => onPlaySong(song.id)}><img src={song.cover} alt="" /><span><strong>{song.title}</strong><small>{artistNameFor(song)} · {song.genre}</small></span><em>{String(index + 1).padStart(2, "0")}</em></button>)}</div></section>;
+}
+
+function CountryTrending({ songs, country, countries, onCountry, onPlay }) {
+  const activeCountry = countries.find((item) => item.code === country) || countries[0];
+  return <section className="section country-trending">
+    <div className="section-head trend-head">
+      <div>
+        <p className="eyebrow">Country charts</p>
+        <h2>Trending in {activeCountry.label}</h2>
+      </div>
+      <span className="muted">Market-weighted trend list</span>
+    </div>
+    <div className="country-pills" aria-label="Choose trending country">
+      {countries.map((item) => <button key={item.code} className={country === item.code ? "active" : ""} onClick={() => onCountry(item.code)}>{item.label}</button>)}
+    </div>
+    <div className="trending-chart">
+      {songs.map(({ song, score }, index) => <button className="trending-card" type="button" key={song.id} onClick={() => onPlay(song.id)}>
+        <span className="trend-rank">{String(index + 1).padStart(2, "0")}</span>
+        <img src={song.cover} alt="" />
+        <span className="trend-copy"><strong>{song.title}</strong><small>{artistNameFor(song)} · {song.genre || "Unsorted"}</small></span>
+        <span className="trend-score">{Math.max(Math.round(score), 0)}</span>
+        <span className="recommend-play"><Play size={17} /></span>
+      </button>)}
+    </div>
+  </section>;
 }
 
 function Recommendations({ title, picks, onPlay }) {

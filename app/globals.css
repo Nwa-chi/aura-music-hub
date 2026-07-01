@@ -108,6 +108,23 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .automix-track small { margin-top: 3px; color: var(--muted); }
 .automix-track em { justify-self: center; color: var(--brand); font-size: 12px; font-style: normal; font-weight: 850; }
 
+.country-trending { border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 8px; padding: 18px; background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(255, 255, 255, 0.015)), var(--panel); }
+.trend-head { align-items: flex-start; }
+.trend-head .eyebrow { margin: 0 0 4px; }
+.country-pills { display: flex; gap: 7px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.country-pills::-webkit-scrollbar { display: none; }
+.country-pills button { min-height: 34px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 7px; padding: 0 12px; color: var(--muted); background: rgba(255, 255, 255, 0.025); }
+.country-pills button:hover, .country-pills button.active { color: #03131c; border-color: var(--brand); background: var(--brand); }
+.trending-chart { display: grid; gap: 8px; }
+.trending-card { min-width: 0; display: grid; grid-template-columns: 42px 54px minmax(0, 1fr) 46px 34px; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; color: var(--text); background: rgba(8, 11, 15, 0.2); text-align: left; cursor: pointer; }
+.trending-card:hover { border-color: rgba(56, 189, 248, 0.55); background: var(--panel-2); }
+.trend-rank { color: var(--brand); font-size: 13px; font-weight: 900; text-align: center; }
+.trending-card img { width: 54px; height: 54px; border-radius: 7px; object-fit: cover; }
+.trend-copy { min-width: 0; }
+.trend-copy strong, .trend-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trend-copy small { margin-top: 4px; color: var(--muted); }
+.trend-score { justify-self: end; border: 1px solid rgba(56, 189, 248, 0.32); border-radius: 999px; padding: 5px 8px; color: var(--brand); background: rgba(56, 189, 248, 0.08); font-size: 12px; font-weight: 900; }
+
 .track-list { border-top: 1px solid var(--line); }
 .track-row { min-height: 62px; display: grid; grid-template-columns: 34px minmax(220px, 1.5fr) minmax(130px, 0.8fr) 48px repeat(5, 38px); gap: 10px; align-items: center; border-bottom: 1px solid var(--line); padding: 7px 5px; }
 .track-row:hover { background: rgba(56, 189, 248, 0.045); }
@@ -340,6 +357,7 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
   .account-cta { align-items: flex-start; }
   .recommend-grid { grid-template-columns: 1fr; }
   .automix-panel { grid-template-columns: 1fr; }
+  .trending-card { grid-template-columns: 34px 50px minmax(0, 1fr) 42px 34px; }
   .album-grid, .playlist-grid, .artist-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .track-row { grid-template-columns: 30px minmax(0, 1fr) repeat(5, 36px); gap: 6px; }
   .hide-mobile { display: none; }
@@ -376,6 +394,10 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
   .account-cta .primary-btn { width: 100%; }
   .automix-copy h2 { font-size: 24px; }
   .automix-panel { padding: 14px; }
+  .country-trending { padding: 14px; }
+  .trending-card { grid-template-columns: 28px 46px minmax(0, 1fr) 32px; gap: 8px; }
+  .trending-card .recommend-play { display: none; }
+  .trend-score { padding: 4px 6px; }
   .search { margin-top: 16px; }
   .section { margin-top: 24px; }
   .admin-hero { padding: 16px; }
