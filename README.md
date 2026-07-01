@@ -21,6 +21,7 @@ Official music domain: `https://www.auramusichub.com/`
 - Account deletion request flow
 - Content reporting and copyright/DMCA routes
 - Owner admin dashboard with release moderation, audit logs, reports, deletion requests, and manual publish controls
+- Owner-only private change watch hidden from public listeners
 
 ## Run Locally
 
@@ -56,3 +57,5 @@ requires macOS with Xcode. See `STORE_RELEASE.md` before submitting either app.
 
 Ownership, app-license, music-license, and developer-account requirements are
 tracked in `DEVELOPER_ACCOUNTS_AND_LICENSES.md`.
+
+Owner-only change monitoring is described in `OWNER_PRIVATE_CHANGE_WATCH.md`.

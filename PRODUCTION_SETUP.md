@@ -5,7 +5,7 @@ The app runs in local prototype mode until Supabase and Cloudflare R2 are config
 ## 1. Supabase
 
 1. Create a Supabase project.
-2. Open the SQL editor and run the files in `supabase/migrations` in order: `001_aura_foundation.sql`, `002_secure_owner_admin.sql`, `003_owner_admin_access.sql`, then `004_trust_safety_store_readiness.sql`.
+2. Open the SQL editor and run the files in `supabase/migrations` in order: `001_aura_foundation.sql`, `002_secure_owner_admin.sql`, `003_owner_admin_access.sql`, `004_trust_safety_store_readiness.sql`, then `005_owner_private_change_watch.sql`.
 3. In Authentication, set the site URL to `https://www.auramusichub.com`.
 4. Add `https://www.auramusichub.com` and the native callback URLs to the redirect allow list.
 5. Copy the project URL and anon key into Cloudflare Pages as:
@@ -20,6 +20,8 @@ The anon key is designed for browser use when Row Level Security is enabled. Nev
 Owner admin access is tied to the configured owner email. Sign into AURA with that same email on your computer and phone to see the Admin dashboard on both devices.
 
 The trust and safety migration adds content reports, account deletion requests, owner audit logs, release logs, and delete policies for uploaded songs.
+
+The private change-watch migration adds an owner-only change feed. Public users can create events through normal app actions, but only the configured owner/admin email can read them.
 
 ## 2. Cloudflare R2
 

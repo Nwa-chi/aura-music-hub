@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { artists, getArtist, playlists, secondsToTime, songs as seedSongs } from "../lib/music";
 import { getSupabase, isCloudConfigured } from "../lib/supabase";
+import versionInfo from "../VERSION.json";
 
 const storageKeys = {
   favorites: "aura:favorites",
@@ -21,6 +22,7 @@ const storageKeys = {
   deletionRequests: "aura:deletion-requests",
   auditLogs: "aura:audit-logs",
   releaseLogs: "aura:release-logs",
+  ownerChanges: "aura:owner-changes",
 };
 
 const legacyKeys = {
@@ -224,7 +226,8 @@ export default function HomePage() {
   const [deletionRequests, setDeletionRequests] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [releaseLogs, setReleaseLogs] = useState([]);
-  const [adminStats, setAdminStats] = useState({ users: 0, reports: 0, deletionRequests: 0, auditLogs: 0, releaseLogs: 0, storageMb: 0 });
+  const [ownerChangeEvents, setOwnerChangeEvents] = useState([]);
+  const [adminStats, setAdminStats] = useState({ users: 0, reports: 0, deletionRequests: 0, auditLogs: 0, releaseLogs: 0, ownerChanges: 0, storageMb: 0 });
   const [user, setUser] = useState(null);
   const [storageReady, setStorageReady] = useState(false);
   const [adminVerified, setAdminVerified] = useState(false);
@@ -263,6 +266,7 @@ export default function HomePage() {
     setDeletionRequests(loadJson(storageKeys.deletionRequests, []));
     setAuditLogs(loadJson(storageKeys.auditLogs, []));
     setReleaseLogs(loadJson(storageKeys.releaseLogs, []));
+    setOwnerChangeEvents(loadJson(storageKeys.ownerChanges, []));
     const savedUser = loadJson(storageKeys.user, null, legacyKeys.user);
     setUser(savedUser);
     setAdminVerified(savedUser?.role === "admin" || isOwnerEmail(savedUser?.email));
@@ -381,6 +385,7 @@ export default function HomePage() {
   useEffect(() => { window.localStorage.setItem(storageKeys.deletionRequests, JSON.stringify(deletionRequests.slice(0, 100))); }, [deletionRequests]);
   useEffect(() => { window.localStorage.setItem(storageKeys.auditLogs, JSON.stringify(auditLogs.slice(0, 250))); }, [auditLogs]);
   useEffect(() => { window.localStorage.setItem(storageKeys.releaseLogs, JSON.stringify(releaseLogs.slice(0, 100))); }, [releaseLogs]);
+  useEffect(() => { window.localStorage.setItem(storageKeys.ownerChanges, JSON.stringify(ownerChangeEvents.slice(0, 250))); }, [ownerChangeEvents]);
   useEffect(() => {
     if (!storageReady) return;
     user ? window.localStorage.setItem(storageKeys.user, JSON.stringify(user)) : window.localStorage.removeItem(storageKeys.user);
@@ -390,17 +395,21 @@ export default function HomePage() {
     const client = getSupabase();
     if (!client || !isAdmin) return;
     let active = true;
-    Promise.all([
-      client.from("profiles").select("id", { count: "exact", head: true }),
-      client.from("content_reports").select("id", { count: "exact", head: true }),
-      client.from("account_deletion_requests").select("id", { count: "exact", head: true }),
-      client.from("audit_logs").select("id", { count: "exact", head: true }),
-      client.from("release_logs").select("id", { count: "exact", head: true }),
-      client.from("content_reports").select("id,song_id,song_title,reason,status,created_at").order("created_at", { ascending: false }).limit(50),
-      client.from("account_deletion_requests").select("id,email,status,created_at").order("created_at", { ascending: false }).limit(50),
-      client.from("audit_logs").select("id,action,entity_type,entity_id,details,created_at").order("created_at", { ascending: false }).limit(50),
-      client.from("release_logs").select("id,version,status,notes,created_at").order("created_at", { ascending: false }).limit(50),
-    ]).then(([users, reports, deletions, audits, releases, reportRows, deletionRows, auditRows, releaseRows]) => {
+
+    async function refreshOwnerData() {
+      const [users, reports, deletions, audits, releases, changes, reportRows, deletionRows, auditRows, releaseRows, changeRows] = await Promise.all([
+        client.from("profiles").select("id", { count: "exact", head: true }),
+        client.from("content_reports").select("id", { count: "exact", head: true }),
+        client.from("account_deletion_requests").select("id", { count: "exact", head: true }),
+        client.from("audit_logs").select("id", { count: "exact", head: true }),
+        client.from("release_logs").select("id", { count: "exact", head: true }),
+        client.from("owner_change_events").select("id", { count: "exact", head: true }),
+        client.from("content_reports").select("id,song_id,song_title,reason,status,created_at").order("created_at", { ascending: false }).limit(50),
+        client.from("account_deletion_requests").select("id,email,status,created_at").order("created_at", { ascending: false }).limit(50),
+        client.from("audit_logs").select("id,action,entity_type,entity_id,details,created_at").order("created_at", { ascending: false }).limit(50),
+        client.from("release_logs").select("id,version,status,notes,created_at").order("created_at", { ascending: false }).limit(50),
+        client.from("owner_change_events").select("id,change_type,title,detail,actor_email,metadata,created_at").order("created_at", { ascending: false }).limit(80),
+      ]);
       if (!active) return;
       setAdminStats({
         users: users.count || 0,
@@ -408,14 +417,26 @@ export default function HomePage() {
         deletionRequests: deletions.count || 0,
         auditLogs: audits.count || 0,
         releaseLogs: releases.count || 0,
+        ownerChanges: changes.count || 0,
         storageMb: Math.round(cloudSongs.length * 4.5),
       });
       if (reportRows.data) setContentReports(reportRows.data);
       if (deletionRows.data) setDeletionRequests(deletionRows.data);
       if (auditRows.data) setAuditLogs(auditRows.data);
       if (releaseRows.data) setReleaseLogs(releaseRows.data);
-    });
-    return () => { active = false; };
+      if (changeRows.data) setOwnerChangeEvents(changeRows.data);
+    }
+
+    refreshOwnerData();
+    const interval = window.setInterval(refreshOwnerData, 15000);
+    const channel = client.channel("owner-private-change-watch")
+      .on("postgres_changes", { event: "*", schema: "public", table: "owner_change_events" }, refreshOwnerData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "content_reports" }, refreshOwnerData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "account_deletion_requests" }, refreshOwnerData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "audit_logs" }, refreshOwnerData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "release_logs" }, refreshOwnerData)
+      .subscribe();
+    return () => { active = false; window.clearInterval(interval); client.removeChannel(channel); };
   }, [isAdmin, cloudSongs.length]);
 
   const allSongs = useMemo(() => uniqueSongsById([...uploads, ...cloudSongs, ...seedSongs]), [uploads, cloudSongs]);
@@ -559,6 +580,28 @@ export default function HomePage() {
     setAdminVerified(false);
   }
 
+  async function recordOwnerChange(changeType, title, detail, metadata = {}) {
+    const event = {
+      id: `change-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      change_type: changeType,
+      title,
+      detail,
+      actor_email: user?.email || metadata.actor_email || null,
+      metadata,
+      created_at: new Date().toISOString(),
+    };
+    if (isAdmin) setOwnerChangeEvents((items) => [event, ...items].slice(0, 250));
+    const client = getSupabase();
+    if (!client) return;
+    await client.from("owner_change_events").insert({
+      change_type: changeType,
+      title,
+      detail,
+      actor_email: user?.email || metadata.actor_email || null,
+      metadata,
+    });
+  }
+
   async function requestAccountDeletion() {
     if (!user) return;
     const request = { id: `delete-${Date.now()}`, email: user.email, status: "requested", created_at: new Date().toISOString() };
@@ -572,6 +615,7 @@ export default function HomePage() {
     setFollowedArtists([]);
     setListeningEvents([]);
     setUploads([]);
+    await recordOwnerChange("account", "Account deletion requested", `${user.email} asked the owner to delete account data.`, { email: user.email });
     await signOut();
     setAccountStatus("Your deletion request was recorded. The owner must complete permanent deletion in Supabase.");
   }
@@ -640,6 +684,7 @@ export default function HomePage() {
       setUploadStatus("Uploaded. Your release is now in the moderation queue.");
     } else setUploadStatus("Saved in prototype mode on this device.");
     setUploads((items) => [song, ...items]); setCurrentId(id);
+    await recordOwnerChange("upload", "New song entered review", `${song.title} by ${song.artist} is waiting for owner review.`, { song_id: song.id, status: song.status, genre: song.genre });
     setUploadForm({ title: "", artist: "", album: "", genre: "Indie", audio: "", cover: "", audioFile: null, coverFile: null, lyrics: "" });
     if (!client) setView("library");
   }
@@ -661,6 +706,7 @@ export default function HomePage() {
     }
     setUploads((items) => items.filter((item) => item.id !== songId));
     setAuditLogs((items) => [{ id: `audit-${Date.now()}`, action: "delete_song", entity_type: "song", entity_id: songId, details: { title: song.title }, created_at: new Date().toISOString() }, ...items]);
+    await recordOwnerChange("catalog", "Song deleted", `${song.title} was removed from the catalog workspace.`, { song_id: songId, title: song.title });
   }
 
   async function updateSongStatus(songId, status) {
@@ -671,6 +717,7 @@ export default function HomePage() {
     if (localOnly) {
       setUploads((items) => items.map((item) => item.id === songId ? { ...item, status } : item));
       setAuditLogs((items) => [{ id: `audit-${Date.now()}`, action: `mark_${status}`, entity_type: "song", entity_id: songId, details: { title: song.title }, created_at: new Date().toISOString() }, ...items]);
+      await recordOwnerChange("moderation", `Song marked ${status}`, `${song.title} was marked ${status} in prototype mode.`, { song_id: songId, status });
       setAdminStatus(`${song.title} marked ${status} in prototype mode.`);
       return;
     }
@@ -688,6 +735,7 @@ export default function HomePage() {
     setUploads((items) => items.map((item) => item.id === songId ? { ...item, status } : item));
     await client.from("audit_logs").insert({ action: `mark_${status}`, entity_type: "song", entity_id: songId, details: { title: song.title, status } });
     setAuditLogs((items) => [{ id: `audit-${Date.now()}`, action: `mark_${status}`, entity_type: "song", entity_id: songId, details: { title: song.title, status }, created_at: new Date().toISOString() }, ...items]);
+    await recordOwnerChange("moderation", `Song marked ${status}`, `${song.title} was marked ${status}.`, { song_id: songId, status });
     setAdminStatus(`${song.title} is now ${status}.`);
   }
 
@@ -719,6 +767,7 @@ export default function HomePage() {
       if (error) { setReportStatus(error.message); return; }
     }
     setContentReports((items) => [report, ...items]);
+    await recordOwnerChange("report", "New content report", `${showReport.title} was reported for ${reason}.`, { song_id: showReport.id, reason });
     setReportStatus("Report submitted. The owner can review it in the Admin dashboard.");
     setShowReport(null);
   }
@@ -785,7 +834,7 @@ export default function HomePage() {
             <button className="primary-btn" type="submit"><UploadCloud size={18} />Submit for review</button>
           </form>
         </section>}
-        {view === "admin" && isAdmin && <AdminDashboard songs={allSongs} uploads={uploads} listeningEvents={listeningEvents} reports={contentReports} deletionRequests={deletionRequests} auditLogs={auditLogs} releaseLogs={releaseLogs} adminStats={adminStats} statusMessage={adminStatus} onPlay={playSong} onModerate={updateSongStatus} />}
+        {view === "admin" && isAdmin && <AdminDashboard songs={allSongs} uploads={uploads} listeningEvents={listeningEvents} reports={contentReports} deletionRequests={deletionRequests} auditLogs={auditLogs} releaseLogs={releaseLogs} ownerChangeEvents={ownerChangeEvents} adminStats={adminStats} versionInfo={versionInfo} statusMessage={adminStatus} onPlay={playSong} onModerate={updateSongStatus} />}
       </div>
 
       <footer className="player">
@@ -855,7 +904,7 @@ function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, fol
   const isFollowing = followedArtists.includes(artist.id);
   return <><section className="section"><div className="artist-grid">{artistList.map((item) => <button className={`artist-card ${item.id === artist.id ? "active" : ""}`} key={item.id} onClick={() => onSelect(item.id)}><img src={item.image} alt="" /><strong>{item.name}</strong><span>{item.genre}</span></button>)}</div></section><section className="section artist-profile"><img src={artist.image} alt="" /><div><p className="eyebrow">{artist.genre} · {artist.location}</p><h2>{artist.name}</h2><p>{artist.bio}</p><p className="muted">{artist.followers} followers</p><div className="button-row"><button className="primary-btn" onClick={() => onPlay(artistSongs[0]?.id)}><Play size={18} />Play artist</button><button className="secondary-btn" onClick={() => onFollow(artist.id)}>{isFollowing ? <CheckCircle2 size={18} /> : <UserPlus size={18} />}{isFollowing ? "Following" : "Follow"}</button></div></div></section></>;
 }
-function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletionRequests = [], auditLogs = [], releaseLogs = [], adminStats = {}, statusMessage, onPlay, onModerate }) {
+function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletionRequests = [], auditLogs = [], releaseLogs = [], ownerChangeEvents = [], adminStats = {}, versionInfo, statusMessage, onPlay, onModerate }) {
   const [showPublishPanel, setShowPublishPanel] = useState(false);
   const catalog = songs.map((song) => ({ ...song, status: songStatus(song), sourceName: sourceLabel(song) }));
   const reviewQueue = catalog.filter((song) => ["draft", "pending", "rejected"].includes(song.status) && ["cloud", "local"].includes(songSourceType(song)));
@@ -915,6 +964,14 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
     { icon: FileCheck2, title: "Rights and metadata", value: missingLyrics.length + rejected.length, detail: "Tracks needing lyrics, rights review, or a cleanup pass." },
     { icon: Megaphone, title: "Promotion candidates", value: published.length, detail: "Published tracks ready for playlists, artist picks, and campaigns." },
   ];
+  const privateChangeFeed = [
+    { id: "build-version", type: "build", title: `Prepared app version ${versionInfo?.version || "unknown"}`, detail: versionInfo?.notes || "Current private build metadata.", at: versionInfo?.preparedAt, actor: "versioning" },
+    ...ownerChangeEvents.map((event) => ({ id: event.id, type: event.change_type || "change", title: event.title, detail: event.detail, at: event.created_at || event.createdAt, actor: event.actor_email || "AURA" })),
+    ...auditLogs.map((log) => ({ id: `audit-${log.id}`, type: log.action || "audit", title: `Audit: ${log.action || "owner action"}`, detail: `${log.entity_type || "item"} ${log.entity_id || ""}`.trim(), at: log.created_at || log.createdAt, actor: "owner" })),
+    ...releaseLogs.map((log) => ({ id: `release-${log.id}`, type: log.status || "release", title: `Release ${log.version || "record"}`, detail: log.notes || "Owner release record.", at: log.created_at || log.createdAt, actor: "release" })),
+    ...reports.map((report) => ({ id: `report-${report.id}`, type: "report", title: report.song_title || "Content report", detail: report.reason || report.status || "open", at: report.created_at || report.createdAt, actor: "listener" })),
+    ...deletionRequests.map((request) => ({ id: `delete-${request.id}`, type: "account", title: "Account deletion request", detail: request.email || request.status || "requested", at: request.created_at || request.createdAt, actor: "account" })),
+  ].filter((item) => item.title).sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0)).slice(0, 18);
   const publishBlockers = [
     pending.length ? `${pending.length} release${pending.length === 1 ? "" : "s"} still waiting for review` : "",
     rejected.length ? `${rejected.length} rejected release${rejected.length === 1 ? "" : "s"} need correction` : "",
@@ -971,9 +1028,28 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
       <AdminStatCard icon={Users} label="User accounts" value={adminStats.users ?? 0} detail="Supabase profile records visible to the owner" />
       <AdminStatCard icon={Flag} label="Open reports" value={adminStats.reports ?? reports.length} detail="Copyright, identity, lyrics, and content reports" tone="warn" />
       <AdminStatCard icon={Trash2} label="Deletion queue" value={adminStats.deletionRequests ?? deletionRequests.length} detail="Account/data deletion requests waiting for owner action" tone="warn" />
+      <AdminStatCard icon={Activity} label="Private changes" value={adminStats.ownerChanges ?? ownerChangeEvents.length} detail="Owner-only change events hidden from public listeners" />
       <AdminStatCard icon={Download} label="Storage estimate" value={`${adminStats.storageMb ?? Math.round(cloudRows.length * 4.5)} MB`} detail="Catalog storage estimate until R2 usage is wired in" />
     </div>
     <div className="admin-layout">
+      <section className="admin-panel admin-wide change-watch-panel">
+        <div className="section-head">
+          <div>
+            <h2>Private change watch</h2>
+            <p className="muted">Owner-only feed for code releases, uploads, reports, deletion requests, and moderation changes. Public users do not see this dashboard.</p>
+          </div>
+          <Activity size={20} />
+        </div>
+        <div className="change-watch-grid">
+          <div className="version-card">
+            <span>Current prepared build</span>
+            <strong>{versionInfo?.version || "Unknown"}</strong>
+            <small>{versionInfo?.status || "prepared"} · Android {versionInfo?.androidVersionCode || "-"} · iOS {versionInfo?.iosBuildNumber || "-"}</small>
+            <p>{versionInfo?.notes || "No private build notes saved yet."}</p>
+          </div>
+          <div className="change-feed">{privateChangeFeed.length === 0 && <p className="muted">No private changes recorded yet.</p>}{privateChangeFeed.map((item) => <OwnerChangeRow key={item.id} item={item} />)}</div>
+        </div>
+      </section>
       <section className="admin-panel admin-wide">
         <div className="section-head">
           <div>
@@ -1059,6 +1135,10 @@ function AdminActionItem({ item }) {
 
 function AdminTrustRow({ label, title, detail, date }) {
   return <article className="trust-row"><span>{label}</span><strong>{title}</strong><small>{detail}{date ? ` · ${shortDate(date)}` : ""}</small></article>;
+}
+
+function OwnerChangeRow({ item }) {
+  return <article className="owner-change-row"><span>{item.type}</span><div><strong>{item.title}</strong><small>{item.detail}{item.actor ? ` · ${item.actor}` : ""}</small></div><time>{item.at ? shortDate(item.at) : "now"}</time></article>;
 }
 
 function AdminPipelineCard({ title, songs, empty, onPlay }) {
