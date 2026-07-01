@@ -216,6 +216,7 @@ export default function HomePage() {
   const [followedArtists, setFollowedArtists] = useState([]);
   const [listeningEvents, setListeningEvents] = useState([]);
   const [user, setUser] = useState(null);
+  const [storageReady, setStorageReady] = useState(false);
   const [adminVerified, setAdminVerified] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [accountStatus, setAccountStatus] = useState("");
@@ -252,6 +253,7 @@ export default function HomePage() {
     const savedLanguage = window.localStorage.getItem(storageKeys.language);
     const browserLanguage = window.navigator.language?.slice(0, 2);
     setLanguage(savedLanguage || (copy[browserLanguage] ? browserLanguage : "en"));
+    setStorageReady(true);
   }, []);
 
   useEffect(() => {
@@ -359,7 +361,10 @@ export default function HomePage() {
   useEffect(() => { window.localStorage.setItem(storageKeys.uploads, JSON.stringify(uploads)); }, [uploads]);
   useEffect(() => { window.localStorage.setItem(storageKeys.listeningEvents, JSON.stringify(listeningEvents.slice(0, 250))); }, [listeningEvents]);
   useEffect(() => { window.localStorage.setItem(storageKeys.followedArtists, JSON.stringify(followedArtists)); }, [followedArtists]);
-  useEffect(() => { user ? window.localStorage.setItem(storageKeys.user, JSON.stringify(user)) : window.localStorage.removeItem(storageKeys.user); }, [user]);
+  useEffect(() => {
+    if (!storageReady) return;
+    user ? window.localStorage.setItem(storageKeys.user, JSON.stringify(user)) : window.localStorage.removeItem(storageKeys.user);
+  }, [storageReady, user]);
 
   const allSongs = useMemo(() => uniqueSongsById([...uploads, ...cloudSongs, ...seedSongs]), [uploads, cloudSongs]);
   const currentSong = allSongs.find((song) => song.id === currentId) ?? allSongs[0];
