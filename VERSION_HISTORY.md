@@ -46,3 +46,11 @@
 - Android version code: 6
 - iOS build number: 6
 - Notes: Make all admin dashboard cards interactive
+
+## 1.0.6
+
+- Status: prepared
+- Prepared: 2026-07-01T22:33:20.487Z
+- Android version code: 7
+- iOS build number: 7
+- Notes: Fix collection tag song membership
