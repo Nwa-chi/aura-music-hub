@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, BarChart3, CalendarClock, CheckCircle2, Clock3, Disc3, Download, FileCheck2, Globe2,
-  Heart, Home, Library, ListChecks, LogIn, Megaphone, Mic2, Moon, Music2, Pause, Play, Radio, Search, Shield,
-  SkipBack, SkipForward, Sparkles, Sun, TrendingUp, UploadCloud, User, UserPlus, Users, Volume2, X,
+  Flag, Heart, Home, Library, LifeBuoy, ListChecks, LogIn, Megaphone, Mic2, Moon, Music2, Pause, Play, Radio,
+  Search, Share2, Shield, SkipBack, SkipForward, Sparkles, Sun, Trash2, TrendingUp, UploadCloud, User, UserPlus,
+  Users, Volume2, X,
 } from "lucide-react";
 import { artists, getArtist, playlists, secondsToTime, songs as seedSongs } from "../lib/music";
 import { getSupabase, isCloudConfigured } from "../lib/supabase";
@@ -16,6 +17,10 @@ const storageKeys = {
   language: "aura:language",
   listeningEvents: "aura:listening-events",
   followedArtists: "aura:followed-artists",
+  contentReports: "aura:content-reports",
+  deletionRequests: "aura:deletion-requests",
+  auditLogs: "aura:audit-logs",
+  releaseLogs: "aura:release-logs",
 };
 
 const legacyKeys = {
@@ -215,11 +220,18 @@ export default function HomePage() {
   const [favorites, setFavorites] = useState([]);
   const [followedArtists, setFollowedArtists] = useState([]);
   const [listeningEvents, setListeningEvents] = useState([]);
+  const [contentReports, setContentReports] = useState([]);
+  const [deletionRequests, setDeletionRequests] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [releaseLogs, setReleaseLogs] = useState([]);
+  const [adminStats, setAdminStats] = useState({ users: 0, reports: 0, deletionRequests: 0, auditLogs: 0, releaseLogs: 0, storageMb: 0 });
   const [user, setUser] = useState(null);
   const [storageReady, setStorageReady] = useState(false);
   const [adminVerified, setAdminVerified] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showReport, setShowReport] = useState(null);
   const [accountStatus, setAccountStatus] = useState("");
+  const [reportStatus, setReportStatus] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -247,6 +259,10 @@ export default function HomePage() {
     setUploads(loadJson(storageKeys.uploads, [], legacyKeys.uploads).filter((song) => song.audio && !song.audio.includes("soundhelix.com")));
     setListeningEvents(loadJson(storageKeys.listeningEvents, []));
     setFollowedArtists(loadJson(storageKeys.followedArtists, []));
+    setContentReports(loadJson(storageKeys.contentReports, []));
+    setDeletionRequests(loadJson(storageKeys.deletionRequests, []));
+    setAuditLogs(loadJson(storageKeys.auditLogs, []));
+    setReleaseLogs(loadJson(storageKeys.releaseLogs, []));
     const savedUser = loadJson(storageKeys.user, null, legacyKeys.user);
     setUser(savedUser);
     setAdminVerified(savedUser?.role === "admin" || isOwnerEmail(savedUser?.email));
@@ -361,10 +377,46 @@ export default function HomePage() {
   useEffect(() => { window.localStorage.setItem(storageKeys.uploads, JSON.stringify(uploads)); }, [uploads]);
   useEffect(() => { window.localStorage.setItem(storageKeys.listeningEvents, JSON.stringify(listeningEvents.slice(0, 250))); }, [listeningEvents]);
   useEffect(() => { window.localStorage.setItem(storageKeys.followedArtists, JSON.stringify(followedArtists)); }, [followedArtists]);
+  useEffect(() => { window.localStorage.setItem(storageKeys.contentReports, JSON.stringify(contentReports.slice(0, 250))); }, [contentReports]);
+  useEffect(() => { window.localStorage.setItem(storageKeys.deletionRequests, JSON.stringify(deletionRequests.slice(0, 100))); }, [deletionRequests]);
+  useEffect(() => { window.localStorage.setItem(storageKeys.auditLogs, JSON.stringify(auditLogs.slice(0, 250))); }, [auditLogs]);
+  useEffect(() => { window.localStorage.setItem(storageKeys.releaseLogs, JSON.stringify(releaseLogs.slice(0, 100))); }, [releaseLogs]);
   useEffect(() => {
     if (!storageReady) return;
     user ? window.localStorage.setItem(storageKeys.user, JSON.stringify(user)) : window.localStorage.removeItem(storageKeys.user);
   }, [storageReady, user]);
+
+  useEffect(() => {
+    const client = getSupabase();
+    if (!client || !isAdmin) return;
+    let active = true;
+    Promise.all([
+      client.from("profiles").select("id", { count: "exact", head: true }),
+      client.from("content_reports").select("id", { count: "exact", head: true }),
+      client.from("account_deletion_requests").select("id", { count: "exact", head: true }),
+      client.from("audit_logs").select("id", { count: "exact", head: true }),
+      client.from("release_logs").select("id", { count: "exact", head: true }),
+      client.from("content_reports").select("id,song_id,song_title,reason,status,created_at").order("created_at", { ascending: false }).limit(50),
+      client.from("account_deletion_requests").select("id,email,status,created_at").order("created_at", { ascending: false }).limit(50),
+      client.from("audit_logs").select("id,action,entity_type,entity_id,details,created_at").order("created_at", { ascending: false }).limit(50),
+      client.from("release_logs").select("id,version,status,notes,created_at").order("created_at", { ascending: false }).limit(50),
+    ]).then(([users, reports, deletions, audits, releases, reportRows, deletionRows, auditRows, releaseRows]) => {
+      if (!active) return;
+      setAdminStats({
+        users: users.count || 0,
+        reports: reports.count || 0,
+        deletionRequests: deletions.count || 0,
+        auditLogs: audits.count || 0,
+        releaseLogs: releases.count || 0,
+        storageMb: Math.round(cloudSongs.length * 4.5),
+      });
+      if (reportRows.data) setContentReports(reportRows.data);
+      if (deletionRows.data) setDeletionRequests(deletionRows.data);
+      if (auditRows.data) setAuditLogs(auditRows.data);
+      if (releaseRows.data) setReleaseLogs(releaseRows.data);
+    });
+    return () => { active = false; };
+  }, [isAdmin, cloudSongs.length]);
 
   const allSongs = useMemo(() => uniqueSongsById([...uploads, ...cloudSongs, ...seedSongs]), [uploads, cloudSongs]);
   const currentSong = allSongs.find((song) => song.id === currentId) ?? allSongs[0];
@@ -381,6 +433,26 @@ export default function HomePage() {
   }, [allSongs, query, genre]);
   const activeLyricIndex = useMemo(() => (currentSong.lyrics ?? []).reduce((active, line, index) => currentTime >= line.time ? index : active, 0), [currentSong, currentTime]);
   const auraMix = useMemo(() => buildAuraMix(allSongs, listeningEvents, favorites, followedArtists), [allSongs, favorites, followedArtists, listeningEvents]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    const songParam = new URLSearchParams(window.location.search).get("song");
+    if (songParam && allSongs.some((song) => song.id === songParam)) setCurrentId(songParam);
+  }, [storageReady, allSongs]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !currentSong) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentSong.title,
+      artist: currentArtist?.name || currentSong.artist || "AURA",
+      album: currentSong.album || "AURA",
+      artwork: currentSong.cover ? [{ src: currentSong.cover, sizes: "512x512", type: "image/png" }] : [],
+    });
+    navigator.mediaSession.setActionHandler("play", () => audioRef.current?.play().then(() => setIsPlaying(true)));
+    navigator.mediaSession.setActionHandler("pause", () => { audioRef.current?.pause(); setIsPlaying(false); });
+    navigator.mediaSession.setActionHandler("previoustrack", () => nextSong(-1));
+    navigator.mediaSession.setActionHandler("nexttrack", () => nextSong(1));
+  }, [currentSong, currentArtist, allSongs, playQueue]);
 
   const recommendations = useMemo(() => {
     const genreScores = {};
@@ -486,6 +558,23 @@ export default function HomePage() {
     setUser(null);
     setAdminVerified(false);
   }
+
+  async function requestAccountDeletion() {
+    if (!user) return;
+    const request = { id: `delete-${Date.now()}`, email: user.email, status: "requested", created_at: new Date().toISOString() };
+    const client = getSupabase();
+    if (client && user.cloud) {
+      const { error } = await client.from("account_deletion_requests").insert({ email: user.email, reason: "User requested account deletion from AURA account panel." });
+      if (error) { setAccountStatus(error.message); return; }
+    }
+    setDeletionRequests((items) => [request, ...items]);
+    setFavorites([]);
+    setFollowedArtists([]);
+    setListeningEvents([]);
+    setUploads([]);
+    await signOut();
+    setAccountStatus("Your deletion request was recorded. The owner must complete permanent deletion in Supabase.");
+  }
   function parseLyrics(text) {
     return text.split("\n").map((line, index) => {
       const match = line.match(/^\[(\d+):(\d+)]\s*(.+)$/);
@@ -555,6 +644,25 @@ export default function HomePage() {
     if (!client) setView("library");
   }
 
+  async function deleteUploadedSong(songId) {
+    const song = allSongs.find((item) => item.id === songId);
+    if (!song) return;
+    const source = songSourceType(song);
+    if (!["local", "cloud"].includes(source)) return;
+    if (source === "cloud") {
+      const client = getSupabase();
+      if (!client || !user?.cloud) {
+        setUploadStatus("Sign in to delete cloud uploads.");
+        return;
+      }
+      const { error } = await client.from("songs").delete().eq("id", songId);
+      if (error) { setUploadStatus(error.message); return; }
+      setCloudSongs((items) => items.filter((item) => item.id !== songId));
+    }
+    setUploads((items) => items.filter((item) => item.id !== songId));
+    setAuditLogs((items) => [{ id: `audit-${Date.now()}`, action: "delete_song", entity_type: "song", entity_id: songId, details: { title: song.title }, created_at: new Date().toISOString() }, ...items]);
+  }
+
   async function updateSongStatus(songId, status) {
     const song = allSongs.find((item) => item.id === songId);
     if (!song) return;
@@ -562,6 +670,7 @@ export default function HomePage() {
     setAdminStatus(`Updating ${song.title}...`);
     if (localOnly) {
       setUploads((items) => items.map((item) => item.id === songId ? { ...item, status } : item));
+      setAuditLogs((items) => [{ id: `audit-${Date.now()}`, action: `mark_${status}`, entity_type: "song", entity_id: songId, details: { title: song.title }, created_at: new Date().toISOString() }, ...items]);
       setAdminStatus(`${song.title} marked ${status} in prototype mode.`);
       return;
     }
@@ -577,7 +686,52 @@ export default function HomePage() {
     }
     setCloudSongs((items) => items.map((item) => item.id === songId ? { ...item, status } : item));
     setUploads((items) => items.map((item) => item.id === songId ? { ...item, status } : item));
+    await client.from("audit_logs").insert({ action: `mark_${status}`, entity_type: "song", entity_id: songId, details: { title: song.title, status } });
+    setAuditLogs((items) => [{ id: `audit-${Date.now()}`, action: `mark_${status}`, entity_type: "song", entity_id: songId, details: { title: song.title, status }, created_at: new Date().toISOString() }, ...items]);
     setAdminStatus(`${song.title} is now ${status}.`);
+  }
+
+  async function submitReport(event) {
+    event.preventDefault();
+    if (!showReport) return;
+    const form = new FormData(event.currentTarget);
+    const reason = form.get("reason") || "copyright";
+    const details = form.get("details") || "";
+    const report = {
+      id: `report-${Date.now()}`,
+      song_id: showReport.id,
+      song_title: showReport.title,
+      reason,
+      details,
+      status: "open",
+      created_at: new Date().toISOString(),
+    };
+    const client = getSupabase();
+    if (client) {
+      const { error } = await client.from("content_reports").insert({
+        song_id: showReport.id,
+        song_title: showReport.title,
+        reason,
+        details,
+        reporter_email: user?.email || null,
+        status: "open",
+      });
+      if (error) { setReportStatus(error.message); return; }
+    }
+    setContentReports((items) => [report, ...items]);
+    setReportStatus("Report submitted. The owner can review it in the Admin dashboard.");
+    setShowReport(null);
+  }
+
+  function shareSong(song) {
+    const url = `${window.location.origin}/?song=${encodeURIComponent(song.id)}`;
+    if (navigator.share) navigator.share({ title: song.title, text: `Listen to ${song.title} on AURA`, url }).catch(() => {});
+    else navigator.clipboard?.writeText(url);
+  }
+
+  function canDeleteSong(song) {
+    const source = songSourceType(song);
+    return source === "local" || (source === "cloud" && user?.cloud && song.ownerId === user.id);
   }
 
   const favoriteSongs = allSongs.filter((song) => favorites.includes(song.id));
@@ -610,12 +764,12 @@ export default function HomePage() {
           <section className="genre-section" aria-label={t.genres}><div className="genre-pills">{genreOptions.map((item) => <button key={item} className={genre === item ? "active" : ""} onClick={() => setGenre(item)}>{item}</button>)}</div></section>
           <AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} />
           <Recommendations title={t.made} picks={recommendations} onPlay={playSong} />
-          <SongSection title={query || genre !== "All" ? `${t.trending} · ${genre}` : t.trending} songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} />
+          <SongSection title={query || genre !== "All" ? `${t.trending} · ${genre}` : t.trending} songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} trackLabel={t.tracks} />
           <Albums title={t.albums} songs={allSongs} onPlay={playSong} />
           <Lyrics title={t.lyrics} song={currentSong} artist={currentArtist} activeIndex={activeLyricIndex} />
         </>}
 
-        {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists songs={allSongs} onPlay={playSong} onSelectTag={(tag) => { setQuery(""); setGenre(tag); setView("home"); }} /></>}
+        {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><AutoMix mix={auraMix} onPlayMix={playAuraMix} onPlaySong={(id) => playSong(id, auraMix.songs.map((song) => song.id))} /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} onDelete={deleteUploadedSong} canDelete={canDeleteSong} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} onReport={setShowReport} onShare={shareSong} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists songs={allSongs} onPlay={playSong} onSelectTag={(tag) => { setQuery(""); setGenre(tag); setView("home"); }} /></>}
         {view === "artists" && <><PageTitle title={t.artists} subtitle="Meet the voices shaping AURA." /><Artists songs={allSongs} useCloudCatalog={cloudSongs.length > 0} selectedArtist={selectedArtist} onSelect={setSelectedArtist} onPlay={playSong} followedArtists={followedArtists} onFollow={toggleFollow} /></>}
         {view === "upload" && <section className="section panel">
           <PageTitle title="Upload songs and lyrics" subtitle={isCloudConfigured ? "Secure uploads enter moderation before appearing in AURA." : "Prototype mode is active. Connect Supabase and R2 to accept secure file uploads."} />
@@ -631,7 +785,7 @@ export default function HomePage() {
             <button className="primary-btn" type="submit"><UploadCloud size={18} />Submit for review</button>
           </form>
         </section>}
-        {view === "admin" && isAdmin && <AdminDashboard songs={allSongs} uploads={uploads} listeningEvents={listeningEvents} statusMessage={adminStatus} onPlay={playSong} onModerate={updateSongStatus} />}
+        {view === "admin" && isAdmin && <AdminDashboard songs={allSongs} uploads={uploads} listeningEvents={listeningEvents} reports={contentReports} deletionRequests={deletionRequests} auditLogs={auditLogs} releaseLogs={releaseLogs} adminStats={adminStats} statusMessage={adminStatus} onPlay={playSong} onModerate={updateSongStatus} />}
       </div>
 
       <footer className="player">
@@ -641,7 +795,8 @@ export default function HomePage() {
         <label className="volume"><Volume2 size={17} /><input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => { const value = Number(event.target.value); setVolume(value); if (audioRef.current) audioRef.current.volume = value; }} /></label>
       </footer>
 
-      {showAccount && <div className="overlay"><div className="modal"><div className="modal-head"><h2>{user ? "Your AURA account" : "Keep your music with you"}</h2><button className="icon-btn" onClick={() => { setShowAccount(false); setAccountStatus(""); }} aria-label="Close"><X size={18} /></button></div>{user ? <><p><strong>{user.name}</strong></p><p className="muted">{user.email} · {roleLabel}</p>{isAdmin && <p className="form-status"><Shield size={17} />Owner admin access is active for this account.</p>}<p className="account-benefit">Your favorites, artist follows, and recommendations stay connected to this account.</p><button className="secondary-btn" onClick={signOut}>Sign out</button></> : <><p className="account-benefit">Create a free account to save favorites, follow artists, and shape your recommendations.</p><form className="form-grid" onSubmit={submitAccount}><label className="field full"><span>Name</span><input name="name" required /></label><label className="field full"><span>Email</span><input name="email" type="email" required /></label>{accountStatus && <p className="form-status full">{accountStatus}</p>}<button className="primary-btn" type="submit"><LogIn size={18} />{isCloudConfigured ? "Email me a secure link" : "Continue in prototype mode"}</button></form></>}</div></div>}
+      {showAccount && <div className="overlay"><div className="modal"><div className="modal-head"><h2>{user ? "Your AURA account" : "Keep your music with you"}</h2><button className="icon-btn" onClick={() => { setShowAccount(false); setAccountStatus(""); }} aria-label="Close"><X size={18} /></button></div>{user ? <><p><strong>{user.name}</strong></p><p className="muted">{user.email} · {roleLabel}</p>{isAdmin && <p className="form-status"><Shield size={17} />Owner admin access is active for this account.</p>}<p className="account-benefit">Your favorites, artist follows, and recommendations stay connected to this account.</p>{accountStatus && <p className="form-status">{accountStatus}</p>}<div className="account-actions"><a className="secondary-btn" href="mailto:support@auramusichub.com"><LifeBuoy size={17} />Support</a><button className="secondary-btn" onClick={signOut}>Sign out</button><button className="secondary-btn danger-btn" onClick={requestAccountDeletion}><Trash2 size={17} />Request deletion</button></div><LegalLinks /></> : <><p className="account-benefit">Create a free account to save favorites, follow artists, and shape your recommendations.</p><form className="form-grid" onSubmit={submitAccount}><label className="field full"><span>Name</span><input name="name" required /></label><label className="field full"><span>Email</span><input name="email" type="email" required /></label>{accountStatus && <p className="form-status full">{accountStatus}</p>}<button className="primary-btn" type="submit"><LogIn size={18} />{isCloudConfigured ? "Email me a secure link" : "Continue in prototype mode"}</button></form><LegalLinks /></>}</div></div>}
+      {showReport && <div className="overlay"><div className="modal"><div className="modal-head"><h2>Report content</h2><button className="icon-btn" onClick={() => { setShowReport(null); setReportStatus(""); }} aria-label="Close"><X size={18} /></button></div><p className="account-benefit">Report copyright, incorrect artist identity, harmful content, or upload issues for <strong>{showReport.title}</strong>.</p><form className="form-grid" onSubmit={submitReport}><label className="field full"><span>Reason</span><select name="reason"><option value="copyright">Copyright or licensing concern</option><option value="artist_identity">Wrong artist or impersonation</option><option value="lyrics">Lyrics issue</option><option value="content">Content concern</option><option value="other">Other</option></select></label><label className="field full"><span>Details</span><textarea name="details" required placeholder="Tell us what should be reviewed." /></label>{reportStatus && <p className="form-status full">{reportStatus}</p>}<button className="primary-btn" type="submit"><Flag size={18} />Submit report</button></form></div></div>}
     </main>
   );
 }
@@ -657,8 +812,12 @@ function Recommendations({ title, picks, onPlay }) {
   return <section className="section"><div className="section-head"><h2>{title}</h2></div><div className="recommend-grid">{picks.map((pick) => <button className="recommend-card" key={pick.title} onClick={() => onPlay(pick.songId)}><img src={pick.image} alt="" /><span><strong>{pick.title}</strong><small>{pick.description}</small></span><span className="recommend-play"><Play size={17} /></span></button>)}</div></section>;
 }
 
-function SongSection({ title, songs, onPlay, favorites, onFavorite, empty, trackLabel = "tracks" }) {
-  return <section className="section"><div className="section-head"><h2>{title}</h2><span className="muted">{songs.length} {trackLabel}</span></div><div className="track-list">{songs.length === 0 && <div className="empty-state muted">{empty || "No songs found."}</div>}{songs.map((song, index) => { const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist; const [primaryTag] = collectionTagsFor(song); return <div className="track-row" key={song.id}><span className="track-number">{String(index + 1).padStart(2, "0")}</span><button className="track-main" onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span className="track-title"><strong>{song.title}</strong><small>{artist}</small></span></button><span className="muted hide-mobile track-meta"><span>{song.album}{primaryTag ? ` · ${primaryTag}` : ""}</span>{song.source && <a href={song.source} target="_blank" rel="noreferrer">{song.license || "Source"} · {song.sourceLabel || "Source"}</a>}</span><span className="muted hide-mobile">{secondsToTime(song.duration)}</span><button className={`bare-btn heart ${favorites.includes(song.id) ? "active" : ""}`} onClick={() => onFavorite(song.id)} title="Favorite"><Heart size={18} fill={favorites.includes(song.id) ? "currentColor" : "none"} /></button><button className="row-play" onClick={() => onPlay(song.id)} title={`Play ${song.title}`}><Play size={16} /></button></div>; })}</div></section>;
+function SongSection({ title, songs, onPlay, favorites, onFavorite, onReport, onShare, onDelete, canDelete, empty, trackLabel = "tracks" }) {
+  return <section className="section"><div className="section-head"><h2>{title}</h2><span className="muted">{songs.length} {trackLabel}</span></div><div className="track-list">{songs.length === 0 && <div className="empty-state muted">{empty || "No songs found."}</div>}{songs.map((song, index) => { const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist; const [primaryTag] = collectionTagsFor(song); return <div className="track-row" key={song.id}><span className="track-number">{String(index + 1).padStart(2, "0")}</span><button className="track-main" onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span className="track-title"><strong>{song.title}</strong><small>{artist}</small></span></button><span className="muted hide-mobile track-meta"><span>{song.album}{primaryTag ? ` · ${primaryTag}` : ""}</span>{song.source && <a href={song.source} target="_blank" rel="noreferrer">{song.license || "Source"} · {song.sourceLabel || "Source"}</a>}</span><span className="muted hide-mobile">{secondsToTime(song.duration)}</span><button className={`bare-btn heart ${favorites.includes(song.id) ? "active" : ""}`} onClick={() => onFavorite(song.id)} title="Favorite"><Heart size={18} fill={favorites.includes(song.id) ? "currentColor" : "none"} /></button>{onShare && <button className="bare-btn" onClick={() => onShare(song)} title="Share"><Share2 size={17} /></button>}{onReport && <button className="bare-btn" onClick={() => onReport(song)} title="Report"><Flag size={17} /></button>}{onDelete && canDelete?.(song) && <button className="bare-btn danger-btn" onClick={() => onDelete(song.id)} title="Delete upload"><Trash2 size={17} /></button>}<button className="row-play" onClick={() => onPlay(song.id)} title={`Play ${song.title}`}><Play size={16} /></button></div>; })}</div></section>;
+}
+
+function LegalLinks() {
+  return <nav className="legal-links" aria-label="Legal links"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/dmca">DMCA</a><a href="/upload-rules">Upload rules</a><a href="/account-deletion">Delete account</a></nav>;
 }
 
 function Albums({ title = "Albums", songs = seedSongs, onPlay }) {
@@ -696,7 +855,7 @@ function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, fol
   const isFollowing = followedArtists.includes(artist.id);
   return <><section className="section"><div className="artist-grid">{artistList.map((item) => <button className={`artist-card ${item.id === artist.id ? "active" : ""}`} key={item.id} onClick={() => onSelect(item.id)}><img src={item.image} alt="" /><strong>{item.name}</strong><span>{item.genre}</span></button>)}</div></section><section className="section artist-profile"><img src={artist.image} alt="" /><div><p className="eyebrow">{artist.genre} · {artist.location}</p><h2>{artist.name}</h2><p>{artist.bio}</p><p className="muted">{artist.followers} followers</p><div className="button-row"><button className="primary-btn" onClick={() => onPlay(artistSongs[0]?.id)}><Play size={18} />Play artist</button><button className="secondary-btn" onClick={() => onFollow(artist.id)}>{isFollowing ? <CheckCircle2 size={18} /> : <UserPlus size={18} />}{isFollowing ? "Following" : "Follow"}</button></div></div></section></>;
 }
-function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay, onModerate }) {
+function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletionRequests = [], auditLogs = [], releaseLogs = [], adminStats = {}, statusMessage, onPlay, onModerate }) {
   const [showPublishPanel, setShowPublishPanel] = useState(false);
   const catalog = songs.map((song) => ({ ...song, status: songStatus(song), sourceName: sourceLabel(song) }));
   const reviewQueue = catalog.filter((song) => ["draft", "pending", "rejected"].includes(song.status) && ["cloud", "local"].includes(songSourceType(song)));
@@ -809,6 +968,10 @@ function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay
       <AdminStatCard icon={CalendarClock} label="Release queue" value={pending.length} detail={`${rejected.length} rejected items need owner attention`} tone="warn" />
       <AdminStatCard icon={Users} label="Listener signals" value={listeningEvents.length} detail={`${completionRate}% completion · ${skipRate}% skips`} />
       <AdminStatCard icon={Shield} label="Cloud-controlled" value={cloudRows.length} detail="Rows backed by Supabase moderation" />
+      <AdminStatCard icon={Users} label="User accounts" value={adminStats.users ?? 0} detail="Supabase profile records visible to the owner" />
+      <AdminStatCard icon={Flag} label="Open reports" value={adminStats.reports ?? reports.length} detail="Copyright, identity, lyrics, and content reports" tone="warn" />
+      <AdminStatCard icon={Trash2} label="Deletion queue" value={adminStats.deletionRequests ?? deletionRequests.length} detail="Account/data deletion requests waiting for owner action" tone="warn" />
+      <AdminStatCard icon={Download} label="Storage estimate" value={`${adminStats.storageMb ?? Math.round(cloudRows.length * 4.5)} MB`} detail="Catalog storage estimate until R2 usage is wired in" />
     </div>
     <div className="admin-layout">
       <section className="admin-panel admin-wide">
@@ -828,6 +991,22 @@ function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay
       <section className="admin-panel">
         <div className="section-head"><h2>Operations</h2><Activity size={20} /></div>
         <div className="action-list">{operations.map((item) => <AdminActionItem key={item.title} item={item} />)}</div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Trust queue</h2><Flag size={20} /></div>
+        <div className="trust-list">{reports.length === 0 && <p className="muted">No content reports yet.</p>}{reports.slice(0, 5).map((report) => <AdminTrustRow key={report.id} label={report.reason || "Report"} title={report.song_title || report.songId || "Reported content"} detail={report.status || "open"} date={report.created_at || report.createdAt} />)}</div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Account requests</h2><Trash2 size={20} /></div>
+        <div className="trust-list">{deletionRequests.length === 0 && <p className="muted">No deletion requests yet.</p>}{deletionRequests.slice(0, 5).map((request) => <AdminTrustRow key={request.id} label={request.status || "requested"} title={request.email || "Account"} detail="Data deletion" date={request.created_at || request.createdAt} />)}</div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Owner audit log</h2><FileCheck2 size={20} /></div>
+        <div className="trust-list">{auditLogs.length === 0 && <p className="muted">Publish, reject, delete, and account actions will appear here.</p>}{auditLogs.slice(0, 6).map((log) => <AdminTrustRow key={log.id} label={log.action || "action"} title={log.entity_type || "catalog"} detail={log.entity_id || "AURA"} date={log.created_at || log.createdAt} />)}</div>
+      </section>
+      <section className="admin-panel">
+        <div className="section-head"><h2>Release log</h2><Megaphone size={20} /></div>
+        <div className="trust-list">{releaseLogs.length === 0 && <p className="muted">Saved versions and manual publish notes will appear here after backend release logging is connected.</p>}{releaseLogs.slice(0, 6).map((log) => <AdminTrustRow key={log.id} label={log.status || "release"} title={log.version || "Version"} detail={log.notes || "Owner release record"} date={log.created_at || log.createdAt} />)}</div>
       </section>
       <section className="admin-panel">
         <div className="section-head"><h2>Audience pulse</h2><Radio size={20} /></div>
@@ -876,6 +1055,10 @@ function AdminStatCard({ icon: Icon, label, value, detail, tone = "brand" }) {
 function AdminActionItem({ item }) {
   const Icon = item.icon;
   return <article className="action-item"><span className="action-icon"><Icon size={17} /></span><div><strong>{item.title}</strong><small>{item.detail}</small></div><em>{item.value}</em></article>;
+}
+
+function AdminTrustRow({ label, title, detail, date }) {
+  return <article className="trust-row"><span>{label}</span><strong>{title}</strong><small>{detail}{date ? ` · ${shortDate(date)}` : ""}</small></article>;
 }
 
 function AdminPipelineCard({ title, songs, empty, onPlay }) {

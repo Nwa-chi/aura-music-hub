@@ -109,7 +109,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .automix-track em { justify-self: center; color: var(--brand); font-size: 12px; font-style: normal; font-weight: 850; }
 
 .track-list { border-top: 1px solid var(--line); }
-.track-row { min-height: 62px; display: grid; grid-template-columns: 34px minmax(220px, 1.5fr) minmax(130px, 0.8fr) 48px 38px 38px; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); padding: 7px 5px; }
+.track-row { min-height: 62px; display: grid; grid-template-columns: 34px minmax(220px, 1.5fr) minmax(130px, 0.8fr) 48px repeat(5, 38px); gap: 10px; align-items: center; border-bottom: 1px solid var(--line); padding: 7px 5px; }
 .track-row:hover { background: rgba(56, 189, 248, 0.045); }
 .track-number { color: var(--muted); font-size: 12px; text-align: center; }
 .track-main { min-width: 0; display: grid; grid-template-columns: 46px minmax(0, 1fr); align-items: center; gap: 11px; border: 0; padding: 0; color: var(--text); background: transparent; text-align: left; }
@@ -126,6 +126,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .heart.active { color: var(--danger); }
 .row-play { width: 32px; height: 32px; border: 0; }
 .empty-state { border-bottom: 1px solid var(--line); padding: 22px 10px; }
+.legal-links, .account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.legal-links { margin-top: 14px; }
+.legal-links a { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 800; }
+.legal-links a:hover { color: var(--brand); border-color: rgba(56, 189, 248, 0.45); }
 
 .album-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .album-card { min-width: 0; }
@@ -200,13 +204,18 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .pipeline-stack img, .track-insight img { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; }
 .pipeline-stack strong, .pipeline-stack small, .track-insight strong, .track-insight small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pipeline-stack small, .track-insight small { margin-top: 3px; color: var(--muted); }
-.action-list, .track-insight-list, .insight-list, .admin-list { display: grid; gap: 9px; }
+.action-list, .track-insight-list, .insight-list, .admin-list, .trust-list { display: grid; gap: 9px; }
 .action-item { min-width: 0; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .action-item:last-child, .insight-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .action-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 7px; color: #03131c; background: var(--brand); }
 .action-item strong, .action-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .action-item small { margin-top: 3px; color: var(--muted); }
 .action-item em { font-style: normal; font-size: 24px; font-weight: 900; }
+.trust-row { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: rgba(255, 255, 255, 0.02); }
+.trust-row span { display: inline-flex; max-width: 100%; border-radius: 999px; padding: 4px 8px; color: #03131c; background: var(--brand); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.trust-row strong, .trust-row small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trust-row strong { margin-top: 8px; }
+.trust-row small { margin-top: 3px; color: var(--muted); }
 .admin-list.compact { max-height: 520px; overflow: auto; padding-right: 4px; }
 .admin-row { min-width: 0; display: grid; grid-template-columns: minmax(220px, 1.2fr) 96px minmax(120px, 0.7fr) minmax(250px, auto); gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 9px; background: rgba(255, 255, 255, 0.02); }
 .admin-row.compact { grid-template-columns: minmax(220px, 1.2fr) 96px minmax(120px, 0.7fr) minmax(210px, auto); }
@@ -257,6 +266,18 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
 .modal { width: min(500px, 100%); border: 1px solid var(--line); border-radius: 8px; padding: 20px; background: var(--panel); box-shadow: var(--shadow); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; }
 .modal-head h2 { margin: 0; }
+.legal-page { min-height: 100vh; width: min(100% - 32px, 980px); margin: 0 auto; padding: 32px 0 56px; }
+.legal-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 22px; }
+.legal-nav a { border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 850; }
+.legal-nav a:first-child { color: var(--text); background: var(--panel); }
+.legal-nav a.active, .legal-nav a:hover { color: #03131c; border-color: var(--brand); background: var(--brand); }
+.legal-doc { border: 1px solid var(--line); border-radius: 8px; padding: clamp(22px, 4vw, 38px); background: var(--panel); box-shadow: var(--shadow); }
+.legal-doc h1 { margin: 5px 0 10px; font-size: clamp(34px, 6vw, 58px); line-height: 1; }
+.legal-summary { max-width: 760px; color: var(--muted); font-size: 18px; line-height: 1.55; }
+.legal-doc section { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 20px; }
+.legal-doc h2 { margin: 0 0 8px; font-size: 22px; }
+.legal-doc p { line-height: 1.65; }
+.legal-note { border: 1px solid rgba(250, 204, 21, 0.34); border-radius: 8px; padding: 12px; color: var(--text); background: rgba(250, 204, 21, 0.08); }
 
 @media (max-width: 900px) {
   .site-header { grid-template-columns: auto 1fr; gap: 14px; padding: 0 16px; backdrop-filter: none; }
@@ -270,7 +291,7 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
   .recommend-grid { grid-template-columns: 1fr; }
   .automix-panel { grid-template-columns: 1fr; }
   .album-grid, .playlist-grid, .artist-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .track-row { grid-template-columns: 30px minmax(0, 1fr) 38px 38px; }
+  .track-row { grid-template-columns: 30px minmax(0, 1fr) repeat(5, 36px); gap: 6px; }
   .hide-mobile { display: none; }
   .dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-hero { grid-template-columns: 1fr; min-height: 0; }

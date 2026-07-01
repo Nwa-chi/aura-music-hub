@@ -18,7 +18,9 @@ Official music domain: `https://www.auramusichub.com/`
 - Dark and light mode
 - User account prototype
 - Song and lyric uploads saved in the browser
-- Admin dashboard
+- Account deletion request flow
+- Content reporting and copyright/DMCA routes
+- Owner admin dashboard with release moderation, audit logs, reports, deletion requests, and manual publish controls
 
 ## Run Locally
 
