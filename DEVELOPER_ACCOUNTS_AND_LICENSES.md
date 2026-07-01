@@ -51,6 +51,8 @@ Owning the app does not mean owning the songs inside it. You need written rights
 
 Keep the release record described in `LEGAL_MUSIC_READINESS.md` for every song before it is published.
 
+Use `MUSIC_LICENSE_REQUIREMENTS.md` for the full license checklist and `MUSIC_RELEASE_LICENSE_RECORD_TEMPLATE.md` as the per-song approval record.
+
 ## 4. Apple Developer account
 
 You need an Apple Developer Program membership to publish AURA on the App Store.

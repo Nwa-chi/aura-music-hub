@@ -4,6 +4,8 @@ Last updated: July 1, 2026
 
 This is the rights checklist to complete before AURA carries real traffic.
 
+For the detailed license packet, see `MUSIC_LICENSE_REQUIREMENTS.md`.
+
 ## Required rights for every release
 
 - Song/master recording owner approval.
