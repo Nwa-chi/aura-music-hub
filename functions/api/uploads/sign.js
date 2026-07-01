@@ -23,7 +23,8 @@ export async function onRequestPost({ request, env }) {
   const user = await userResponse.json();
   const { filename, contentType, kind = "audio" } = await request.json();
   if (!filename || !contentType) return json({ error: "File details are required." }, 400);
-  if (!contentType.startsWith(kind === "cover" ? "image/" : "audio/")) {
+  const allowedPrefix = kind === "cover" ? "image/" : kind === "video" ? "video/" : "audio/";
+  if (!["audio", "video", "cover"].includes(kind) || !contentType.startsWith(allowedPrefix)) {
     return json({ error: `A valid ${kind} file is required.` }, 400);
   }
 

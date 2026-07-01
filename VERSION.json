@@ -9,7 +9,7 @@
   "status": "prepared",
   "publicUrl": "https://www.auramusichub.com/",
   "reviewUrl": "/?ownerPreview=1",
-  "notes": "Owner publish workflow, private change review, interactive admin dashboard, and corrected collection tags",
+  "notes": "Owner publish workflow, private change review, interactive admin dashboard, corrected collection tags, video playback, and active synced lyrics",
   "highlights": [
     {
       "title": "Owner build review",
@@ -35,6 +35,11 @@
       "title": "Collection cleanup",
       "status": "ready",
       "detail": "Vibe And Bubble is Afrobeats only; Blues is tagged separately and Highlife is waiting for a true Highlife track."
+    },
+    {
+      "title": "Music video mode",
+      "status": "ready",
+      "detail": "AURA can now play audio songs, video songs, and synchronized live lyric timelines from one shared player."
     }
   ],
   "artifacts": [

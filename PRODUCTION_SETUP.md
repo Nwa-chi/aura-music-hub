@@ -5,7 +5,7 @@ The app runs in local prototype mode until Supabase and Cloudflare R2 are config
 ## 1. Supabase
 
 1. Create a Supabase project.
-2. Open the SQL editor and run the files in `supabase/migrations` in order: `001_aura_foundation.sql`, `002_secure_owner_admin.sql`, `003_owner_admin_access.sql`, `004_trust_safety_store_readiness.sql`, then `005_owner_private_change_watch.sql`.
+2. Open the SQL editor and run the files in `supabase/migrations` in order: `001_aura_foundation.sql`, `002_secure_owner_admin.sql`, `003_owner_admin_access.sql`, `004_trust_safety_store_readiness.sql`, `005_owner_private_change_watch.sql`, then `006_video_songs.sql`.
 3. In Authentication, set the site URL to `https://www.auramusichub.com`.
 4. Add these redirect URLs to the allow list:
    - `https://www.auramusichub.com`
@@ -26,6 +26,8 @@ Owner admin access is tied to the configured owner email. Sign into AURA with th
 The trust and safety migration adds content reports, account deletion requests, owner audit logs, release logs, and delete policies for uploaded songs.
 
 The private change-watch migration adds an owner-only change feed. Public users can create events through normal app actions, but only the configured owner/admin email can read them.
+
+The video migration adds an optional `video_url` column so AURA can publish music videos and live performance tracks alongside audio-only songs.
 
 ## 2. Cloudflare R2
 
