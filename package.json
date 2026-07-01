@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "preview": "npx serve@latest out",
+    "release:manual": "npm run build && node scripts/release-manual.mjs",
     "native:sync": "npm run build && cap sync",
     "native:android": "npm run native:sync && cap open android",
     "native:ios": "npm run native:sync && cap open ios"

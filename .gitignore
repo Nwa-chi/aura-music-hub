@@ -2,6 +2,7 @@ node_modules/
 .next/
 out/
 work/
+outputs/manual-release/
 .env*
 !.env.example
 desktop.ini
