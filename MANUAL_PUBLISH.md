@@ -24,6 +24,7 @@ This creates:
 
 - `outputs/manual-release/web/` - the static web build for Cloudflare Pages direct upload
 - `outputs/manual-release/release-notes.md` - what changed and what to test
+- `outputs/manual-release/owner-change-report.md` - private owner-only code and documentation change report
 - `outputs/manual-release/publish-checklist.md` - final go/no-go checklist
 - `outputs/manual-release/store-metadata.json` - starter metadata for app-store listings
 
@@ -32,11 +33,24 @@ The version is saved in `VERSION.json` and `VERSION_HISTORY.md`.
 ## Publish To Cloudflare Manually
 
 1. Run `npm run release:manual`.
-2. Open `outputs/manual-release/web/` locally or with a static server.
-3. Confirm login, playback, uploads, admin, mobile layout, and install behavior.
-4. In Cloudflare Pages, create a direct upload deployment using `outputs/manual-release/web/`.
-5. Review the preview deployment.
-6. Promote it to production only when you are satisfied.
+2. Read `outputs/manual-release/owner-change-report.md`.
+3. Open `outputs/manual-release/web/` locally or with a static server.
+4. Confirm login, playback, uploads, admin, mobile layout, and install behavior.
+5. In Cloudflare Pages, create a direct upload deployment using `outputs/manual-release/web/`.
+6. Review the preview deployment.
+7. Promote it to production only when you are satisfied.
+
+## Stop Automatic Public Publishing
+
+If Cloudflare Pages is connected to GitHub and automatic production deployments are enabled, pushing to the production branch can publish the app automatically.
+
+For true manual publishing, use one of these controls:
+
+- In Cloudflare Pages, disable automatic production deployments for the GitHub project and use Direct Uploads only after you approve a release.
+- Or set the production branch to a protected release branch such as `production`, while daily work happens on another branch.
+- Or keep code changes local/preview-only until you approve the release package.
+
+The safest owner workflow is: review `owner-change-report.md`, test the manual package, then publish only when you approve it.
 
 ## Publish To Google Play Manually
 
