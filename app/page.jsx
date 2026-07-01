@@ -906,6 +906,7 @@ function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, fol
 }
 function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletionRequests = [], auditLogs = [], releaseLogs = [], ownerChangeEvents = [], adminStats = {}, versionInfo, statusMessage, onPlay, onModerate }) {
   const [showPublishPanel, setShowPublishPanel] = useState(false);
+  const [publishState, setPublishState] = useState({ status: "idle", message: "" });
   const catalog = songs.map((song) => ({ ...song, status: songStatus(song), sourceName: sourceLabel(song) }));
   const reviewQueue = catalog.filter((song) => ["draft", "pending", "rejected"].includes(song.status) && ["cloud", "local"].includes(songSourceType(song)));
   const pending = reviewQueue.filter((song) => song.status !== "rejected");
@@ -978,6 +979,44 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
     missingLyrics.length ? `${missingLyrics.length} track${missingLyrics.length === 1 ? "" : "s"} missing synced lyrics` : "",
   ].filter(Boolean);
 
+  async function publishRelease() {
+    if (publishBlockers.length) {
+      setPublishState({ status: "blocked", message: "Resolve the release blockers before publishing." });
+      return;
+    }
+    const client = getSupabase();
+    if (!client) {
+      setPublishState({ status: "blocked", message: "Supabase is not connected in this build, so the owner cannot be verified for publishing." });
+      return;
+    }
+    const { data } = await client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      setPublishState({ status: "blocked", message: "Sign in as the owner before publishing." });
+      return;
+    }
+    setPublishState({ status: "publishing", message: "Sending owner-approved publish request to Cloudflare..." });
+    try {
+      const response = await fetch("/api/releases/publish", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          version: versionInfo?.version,
+          commit: versionInfo?.commit || null,
+          notes: versionInfo?.notes || "Owner-approved release from AURA Admin dashboard.",
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setPublishState({ status: "blocked", message: result.nextStep || result.error || "Publish request failed." });
+        return;
+      }
+      setPublishState({ status: "success", message: `${result.message} Version ${result.version || versionInfo?.version || ""} is now deploying.` });
+    } catch (error) {
+      setPublishState({ status: "blocked", message: "This review server cannot run Cloudflare Functions. The publish button works on Cloudflare Pages after the deploy hook secret is configured." });
+    }
+  }
+
   return <section className="section admin-shell">
     <div className="admin-hero">
       <div>
@@ -1008,15 +1047,16 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
       <div className="publish-grid">
         <div className="publish-readiness">
           <span>Release readiness</span>
-          <strong>{publishBlockers.length ? "Review needed" : "Ready for manual publish"}</strong>
-          <p>{publishBlockers.length ? "Resolve the blockers below before publishing publicly." : "No dashboard blockers found. Build a manual release package and publish it only when you are satisfied."}</p>
+          <strong>{publishBlockers.length ? "Review needed" : "Ready to publish"}</strong>
+          <p>{publishBlockers.length ? "Resolve the blockers below before publishing publicly." : "This button will call the secure Cloudflare publish endpoint, verify the owner session, trigger deployment, and log the release."}</p>
         </div>
         <div className="publish-checks">
-          {(publishBlockers.length ? publishBlockers : ["Catalog is reviewed", "Manual release package can be created", "Owner approval is required before public deployment"]).map((item) => <p key={item}><CheckCircle2 size={16} />{item}</p>)}
+          {(publishBlockers.length ? publishBlockers : ["Catalog is reviewed", "Owner sign-in is required", "Cloudflare deploy hook must be configured", "Release will be logged privately for the owner"]).map((item) => <p key={item}><CheckCircle2 size={16} />{item}</p>)}
         </div>
       </div>
+      {publishState.message && <p className={`form-status publish-status ${publishState.status}`}><CheckCircle2 size={17} />{publishState.message}</p>}
       <div className="button-row">
-        <button className="primary-btn" onClick={() => setShowPublishPanel(false)}><CheckCircle2 size={18} />Keep manual publish gate</button>
+        <button className="primary-btn" disabled={publishState.status === "publishing" || publishBlockers.length > 0} onClick={publishRelease}><UploadCloud size={18} />{publishState.status === "publishing" ? "Publishing..." : "Publish to Cloudflare"}</button>
         <button className="secondary-btn" onClick={() => setShowPublishPanel(false)}>Close</button>
       </div>
     </section>}

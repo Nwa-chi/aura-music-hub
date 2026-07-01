@@ -193,6 +193,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .publish-checks { display: grid; gap: 8px; }
 .publish-checks p { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); }
 .publish-checks svg { flex: 0 0 auto; color: var(--brand); }
+.publish-status { margin: 0 0 14px; }
+.publish-status.success { border-color: rgba(56, 189, 248, 0.38); color: var(--brand); }
+.publish-status.blocked { border-color: rgba(250, 204, 21, 0.36); color: #facc15; background: rgba(250, 204, 21, 0.08); }
 .change-watch-panel { border-color: rgba(56, 189, 248, 0.34); background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(255, 255, 255, 0.01)), var(--panel); }
 .change-watch-grid { display: grid; grid-template-columns: minmax(220px, 0.45fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .version-card { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--panel-2); }

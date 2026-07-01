@@ -40,6 +40,19 @@ The version is saved in `VERSION.json` and `VERSION_HISTORY.md`.
 6. Review the preview deployment.
 7. Promote it to production only when you are satisfied.
 
+## Publish From The Owner Dashboard
+
+The Admin dashboard **Publish to Cloudflare** button is designed for owner-approved production deploys.
+
+It works when:
+
+- The app is running on Cloudflare Pages, not a local static preview server.
+- The owner is signed in with the configured owner email.
+- The Pages Function `/api/releases/publish` is deployed.
+- `CLOUDFLARE_PAGES_DEPLOY_HOOK_URL` is saved as a Cloudflare Pages secret.
+
+If those are ready, the button verifies the owner, triggers Cloudflare deployment, and logs the release privately.
+
 ## Stop Automatic Public Publishing
 
 If Cloudflare Pages is connected to GitHub and automatic production deployments are enabled, pushing to the production branch can publish the app automatically.

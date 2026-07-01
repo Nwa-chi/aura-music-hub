@@ -58,3 +58,17 @@ Uploaded songs enter `pending` status. An administrator must change them to `pub
 - Pages Functions directory: `functions`
 
 After adding environment variables, trigger a new Cloudflare Pages deployment. Existing local favorites remain available until the listener signs into a cloud account.
+
+## 5. Owner Publish Button
+
+The Admin dashboard publish button calls the server-side Pages Function at `/api/releases/publish`.
+
+To make the button trigger a real Cloudflare deployment:
+
+1. In Cloudflare Pages, open the AURA project.
+2. Create a Deploy Hook for the branch you want the owner button to publish.
+3. Save the hook URL as a Pages secret:
+   - `CLOUDFLARE_PAGES_DEPLOY_HOOK_URL`
+4. Keep `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `AURA_OWNER_EMAILS` configured so the Function can verify the owner before deploying.
+
+The button will not expose Cloudflare credentials in the browser. If the deploy hook secret is missing, the Admin dashboard shows a clear setup message instead of pretending to publish.
