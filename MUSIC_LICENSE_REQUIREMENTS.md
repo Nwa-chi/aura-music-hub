@@ -10,7 +10,7 @@ I can prepare the checklist, templates, app records, license fields, source link
 
 Only the owner can actually obtain licenses because rights holders, developer programs, PROs, publishers, and licensing bodies require the legal owner/business name, address, tax/payment details, signatures, and account access.
 
-## Minimum licenses needed for a Spotify-style app
+## Minimum licenses needed for an on-demand streaming app
 
 ### 1. Master recording rights
 
