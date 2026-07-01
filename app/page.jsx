@@ -961,9 +961,9 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
   })).filter((row) => row.count > 0);
   const maxSourceCount = Math.max(...sourceRows.map((row) => row.count), 1);
   const operations = [
-    { icon: ListChecks, title: "Review release queue", value: pending.length, detail: "Songs waiting for a publish or reject decision." },
-    { icon: FileCheck2, title: "Rights and metadata", value: missingLyrics.length + rejected.length, detail: "Tracks needing lyrics, rights review, or a cleanup pass." },
-    { icon: Megaphone, title: "Promotion candidates", value: published.length, detail: "Published tracks ready for playlists, artist picks, and campaigns." },
+    { icon: ListChecks, title: "Review release queue", value: pending.length, detail: "Songs waiting for a publish or reject decision.", target: "admin-release-pipeline" },
+    { icon: FileCheck2, title: "Rights and metadata", value: missingLyrics.length + rejected.length, detail: "Tracks needing lyrics, rights review, or a cleanup pass.", target: "admin-catalog-table" },
+    { icon: Megaphone, title: "Promotion candidates", value: published.length, detail: "Published tracks ready for playlists, artist picks, and campaigns.", target: "admin-top-tracks" },
   ];
   const privateChangeFeed = [
     { id: "build-version", type: "build", title: `Prepared app version ${versionInfo?.version || "unknown"}`, detail: versionInfo?.notes || "Current private build metadata.", at: versionInfo?.preparedAt, actor: "versioning" },
@@ -981,6 +981,15 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
 
   function jumpToAdminSection(sectionId) {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function targetForChange(type) {
+    if (type === "report") return "admin-trust-queue";
+    if (type === "account") return "admin-account-requests";
+    if (type === "publish" || type === "release" || type === "build") return "admin-release-log";
+    if (type === "moderation" || type === "catalog" || type === "upload") return "admin-moderation-desk";
+    if (type === "audit" || String(type || "").startsWith("mark_")) return "admin-audit-log";
+    return "admin-private-change-watch";
   }
 
   async function publishRelease() {
@@ -1085,13 +1094,13 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
           <Activity size={20} />
         </div>
         <div className="change-watch-grid">
-          <div className="version-card">
+          <button className="version-card" type="button" onClick={() => jumpToAdminSection("admin-release-log")}>
             <span>Current prepared build</span>
             <strong>{versionInfo?.version || "Unknown"}</strong>
             <small>{versionInfo?.status || "prepared"} · Android {versionInfo?.androidVersionCode || "-"} · iOS {versionInfo?.iosBuildNumber || "-"}</small>
             <p>{versionInfo?.notes || "No private build notes saved yet."}</p>
-          </div>
-          <div className="change-feed">{privateChangeFeed.length === 0 && <p className="muted">No private changes recorded yet.</p>}{privateChangeFeed.map((item) => <OwnerChangeRow key={item.id} item={item} />)}</div>
+          </button>
+          <div className="change-feed">{privateChangeFeed.length === 0 && <p className="muted">No private changes recorded yet.</p>}{privateChangeFeed.map((item) => <OwnerChangeRow key={item.id} item={item} onClick={() => jumpToAdminSection(targetForChange(item.type))} />)}</div>
         </div>
       </section>
       <section id="admin-release-pipeline" className="admin-panel admin-wide">
@@ -1103,34 +1112,34 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
           <ListChecks size={20} />
         </div>
         <div className="pipeline-grid">
-          <AdminPipelineCard title="Needs review" songs={pending} empty="No pending releases." onPlay={onPlay} />
-          <AdminPipelineCard title="Needs correction" songs={rejected} empty="No rejected releases." onPlay={onPlay} />
-          <AdminPipelineCard title="Published" songs={published.slice(0, 4)} empty="No published releases yet." onPlay={onPlay} />
+          <AdminPipelineCard title="Needs review" songs={pending} empty="No pending releases." onOpen={() => jumpToAdminSection("admin-moderation-desk")} onPlay={onPlay} />
+          <AdminPipelineCard title="Needs correction" songs={rejected} empty="No rejected releases." onOpen={() => jumpToAdminSection("admin-moderation-desk")} onPlay={onPlay} />
+          <AdminPipelineCard title="Published" songs={published.slice(0, 4)} empty="No published releases yet." onOpen={() => jumpToAdminSection("admin-catalog-table")} onPlay={onPlay} />
         </div>
       </section>
       <section id="admin-operations" className="admin-panel">
         <div className="section-head"><h2>Operations</h2><Activity size={20} /></div>
-        <div className="action-list">{operations.map((item) => <AdminActionItem key={item.title} item={item} />)}</div>
+        <div className="action-list">{operations.map((item) => <AdminActionItem key={item.title} item={item} onClick={() => jumpToAdminSection(item.target)} />)}</div>
       </section>
       <section id="admin-trust-queue" className="admin-panel">
         <div className="section-head"><h2>Trust queue</h2><Flag size={20} /></div>
-        <div className="trust-list">{reports.length === 0 && <p className="muted">No content reports yet.</p>}{reports.slice(0, 5).map((report) => <AdminTrustRow key={report.id} label={report.reason || "Report"} title={report.song_title || report.songId || "Reported content"} detail={report.status || "open"} date={report.created_at || report.createdAt} />)}</div>
+        <div className="trust-list">{reports.length === 0 && <p className="muted">No content reports yet.</p>}{reports.slice(0, 5).map((report) => <AdminTrustRow key={report.id} label={report.reason || "Report"} title={report.song_title || report.songId || "Reported content"} detail={report.status || "open"} date={report.created_at || report.createdAt} onClick={() => jumpToAdminSection("admin-moderation-desk")} />)}</div>
       </section>
       <section id="admin-account-requests" className="admin-panel">
         <div className="section-head"><h2>Account requests</h2><Trash2 size={20} /></div>
-        <div className="trust-list">{deletionRequests.length === 0 && <p className="muted">No deletion requests yet.</p>}{deletionRequests.slice(0, 5).map((request) => <AdminTrustRow key={request.id} label={request.status || "requested"} title={request.email || "Account"} detail="Data deletion" date={request.created_at || request.createdAt} />)}</div>
+        <div className="trust-list">{deletionRequests.length === 0 && <p className="muted">No deletion requests yet.</p>}{deletionRequests.slice(0, 5).map((request) => <AdminTrustRow key={request.id} label={request.status || "requested"} title={request.email || "Account"} detail="Data deletion" date={request.created_at || request.createdAt} onClick={() => jumpToAdminSection("admin-audit-log")} />)}</div>
       </section>
       <section id="admin-audit-log" className="admin-panel">
         <div className="section-head"><h2>Owner audit log</h2><FileCheck2 size={20} /></div>
-        <div className="trust-list">{auditLogs.length === 0 && <p className="muted">Publish, reject, delete, and account actions will appear here.</p>}{auditLogs.slice(0, 6).map((log) => <AdminTrustRow key={log.id} label={log.action || "action"} title={log.entity_type || "catalog"} detail={log.entity_id || "AURA"} date={log.created_at || log.createdAt} />)}</div>
+        <div className="trust-list">{auditLogs.length === 0 && <p className="muted">Publish, reject, delete, and account actions will appear here.</p>}{auditLogs.slice(0, 6).map((log) => <AdminTrustRow key={log.id} label={log.action || "action"} title={log.entity_type || "catalog"} detail={log.entity_id || "AURA"} date={log.created_at || log.createdAt} onClick={() => jumpToAdminSection("admin-catalog-table")} />)}</div>
       </section>
       <section id="admin-release-log" className="admin-panel">
         <div className="section-head"><h2>Release log</h2><Megaphone size={20} /></div>
-        <div className="trust-list">{releaseLogs.length === 0 && <p className="muted">Saved versions and manual publish notes will appear here after backend release logging is connected.</p>}{releaseLogs.slice(0, 6).map((log) => <AdminTrustRow key={log.id} label={log.status || "release"} title={log.version || "Version"} detail={log.notes || "Owner release record"} date={log.created_at || log.createdAt} />)}</div>
+        <div className="trust-list">{releaseLogs.length === 0 && <p className="muted">Saved versions and manual publish notes will appear here after backend release logging is connected.</p>}{releaseLogs.slice(0, 6).map((log) => <AdminTrustRow key={log.id} label={log.status || "release"} title={log.version || "Version"} detail={log.notes || "Owner release record"} date={log.created_at || log.createdAt} onClick={() => setShowPublishPanel(true)} />)}</div>
       </section>
       <section id="admin-audience-pulse" className="admin-panel">
         <div className="section-head"><h2>Audience pulse</h2><Radio size={20} /></div>
-        <div className="insight-list">{recentActivity.length === 0 && <p className="muted">No listener activity yet. Plays, skips, favorites, and completed songs will appear here.</p>}{recentActivity.map((event) => <div className="insight-row" key={`${event.songId}-${event.type}-${event.at}`}><span>{event.type}</span><strong>{event.song.title}</strong><small>{shortDate(event.at)}</small></div>)}</div>
+        <div className="insight-list">{recentActivity.length === 0 && <p className="muted">No listener activity yet. Plays, skips, favorites, and completed songs will appear here.</p>}{recentActivity.map((event) => <button className="insight-row" type="button" key={`${event.songId}-${event.type}-${event.at}`} onClick={() => onPlay(event.song.id)}><span>{event.type}</span><strong>{event.song.title}</strong><small>{shortDate(event.at)}</small></button>)}</div>
       </section>
       <section id="admin-moderation-desk" className="admin-panel admin-wide">
         <div className="section-head">
@@ -1148,11 +1157,11 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
       </section>
       <section id="admin-genre-demand" className="admin-panel">
         <div className="section-head"><h2>Genre demand</h2><BarChart3 size={20} /></div>
-        <div className="insight-list">{activeGenres.map(([genre, count]) => <div className="insight-bar" key={genre}><span>{genre}</span><meter min="0" max={Math.max(...activeGenres.map(([, value]) => value), 1)} value={count} /><strong>{count}</strong></div>)}</div>
+        <div className="insight-list">{activeGenres.map(([genre, count]) => <button className="insight-bar" type="button" key={genre} onClick={() => jumpToAdminSection("admin-catalog-table")}><span>{genre}</span><meter min="0" max={Math.max(...activeGenres.map(([, value]) => value), 1)} value={count} /><strong>{count}</strong></button>)}</div>
       </section>
       <section id="admin-catalog-sources" className="admin-panel">
         <div className="section-head"><h2>Catalog sources</h2><Disc3 size={20} /></div>
-        <div className="insight-list">{sourceRows.map((row) => <div className="source-row" key={row.source}><span>{row.label}</span><meter min="0" max={maxSourceCount} value={row.count} /><strong>{row.count}</strong></div>)}</div>
+        <div className="insight-list">{sourceRows.map((row) => <button className="source-row" type="button" key={row.source} onClick={() => jumpToAdminSection("admin-catalog-table")}><span>{row.label}</span><meter min="0" max={maxSourceCount} value={row.count} /><strong>{row.count}</strong></button>)}</div>
       </section>
       <section id="admin-catalog-table" className="admin-panel admin-wide">
         <div className="section-head">
@@ -1172,21 +1181,21 @@ function AdminStatCard({ icon: Icon, label, value, detail, tone = "brand", onCli
   return <button className={`admin-stat-card ${tone}`} type="button" onClick={onClick} aria-label={`Open ${label}`}><div><span>{label}</span><strong>{value}</strong></div><Icon size={22} /><small>{detail}</small></button>;
 }
 
-function AdminActionItem({ item }) {
+function AdminActionItem({ item, onClick }) {
   const Icon = item.icon;
-  return <article className="action-item"><span className="action-icon"><Icon size={17} /></span><div><strong>{item.title}</strong><small>{item.detail}</small></div><em>{item.value}</em></article>;
+  return <button className="action-item" type="button" onClick={onClick}><span className="action-icon"><Icon size={17} /></span><div><strong>{item.title}</strong><small>{item.detail}</small></div><em>{item.value}</em></button>;
 }
 
-function AdminTrustRow({ label, title, detail, date }) {
-  return <article className="trust-row"><span>{label}</span><strong>{title}</strong><small>{detail}{date ? ` · ${shortDate(date)}` : ""}</small></article>;
+function AdminTrustRow({ label, title, detail, date, onClick }) {
+  return <button className="trust-row" type="button" onClick={onClick}><span>{label}</span><strong>{title}</strong><small>{detail}{date ? ` · ${shortDate(date)}` : ""}</small></button>;
 }
 
-function OwnerChangeRow({ item }) {
-  return <article className="owner-change-row"><span>{item.type}</span><div><strong>{item.title}</strong><small>{item.detail}{item.actor ? ` · ${item.actor}` : ""}</small></div><time>{item.at ? shortDate(item.at) : "now"}</time></article>;
+function OwnerChangeRow({ item, onClick }) {
+  return <button className="owner-change-row" type="button" onClick={onClick}><span>{item.type}</span><div><strong>{item.title}</strong><small>{item.detail}{item.actor ? ` · ${item.actor}` : ""}</small></div><time>{item.at ? shortDate(item.at) : "now"}</time></button>;
 }
 
-function AdminPipelineCard({ title, songs, empty, onPlay }) {
-  return <article className="pipeline-card"><div className="pipeline-head"><strong>{title}</strong><span>{songs.length}</span></div><div className="pipeline-stack">{songs.length === 0 && <p className="muted">{empty}</p>}{songs.slice(0, 4).map((song) => <button key={song.id} onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span><strong>{song.title}</strong><small>{artistNameFor(song)} · {song.genre || "Unsorted"}</small></span></button>)}</div></article>;
+function AdminPipelineCard({ title, songs, empty, onOpen, onPlay }) {
+  return <article className="pipeline-card"><button className="pipeline-head" type="button" onClick={onOpen}><strong>{title}</strong><span>{songs.length}</span></button><div className="pipeline-stack">{songs.length === 0 && <button className="empty-pipeline-action" type="button" onClick={onOpen}>{empty}</button>}{songs.slice(0, 4).map((song) => <button key={song.id} onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span><strong>{song.title}</strong><small>{artistNameFor(song)} · {song.genre || "Unsorted"}</small></span></button>)}</div></article>;
 }
 
 function AdminTrackInsight({ item, onPlay }) {
