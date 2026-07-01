@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity, BarChart3, CalendarClock, CheckCircle2, Clock3, Disc3, Download, FileCheck2, Globe2,
+  Activity, Airplay, BarChart3, Bluetooth, CalendarClock, Cast, CheckCircle2, Clock3, Disc3, Download, FileCheck2, Globe2,
   Flag, Heart, Home, Library, LifeBuoy, ListChecks, LogIn, Megaphone, Mic2, Moon, Music2, Pause, Play, Radio,
   Search, Share2, Shield, SkipBack, SkipForward, Sparkles, Sun, Trash2, TrendingUp, UploadCloud, User, UserPlus,
   Users, Volume2, X,
@@ -58,11 +58,11 @@ const languages = [
   ["srn", "Sranan Tongo"], ["ln", "Lingála (Congo)"], ["fr", "Français"], ["pt", "Português"],
   ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
 ];
-const genreOptions = ["All", "Afrobeats", "Highlife", "Blues", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
+const genreOptions = ["All", "Afrobeats", "Nigerian", "Turkish", "Traditional", "Highlife", "Blues", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
 const trendingCountries = [
-  { code: "global", label: "Global", genres: { Pop: 5, "Hip-Hop": 5, "R&B": 4, Afrobeats: 4, Gospel: 2, Blues: 2, Highlife: 1 } },
-  { code: "ng", label: "Nigeria", genres: { Afrobeats: 9, Gospel: 6, "Hip-Hop": 5, "R&B": 4, Highlife: 3, Pop: 2 } },
-  { code: "gh", label: "Ghana", genres: { Highlife: 9, Afrobeats: 7, Gospel: 4, "Hip-Hop": 3, "R&B": 3 } },
+  { code: "global", label: "Global", genres: { Pop: 5, "Hip-Hop": 5, "R&B": 4, Afrobeats: 4, Nigerian: 3, Turkish: 3, Traditional: 2, Gospel: 2, Blues: 2, Highlife: 1 } },
+  { code: "ng", label: "Nigeria", genres: { Nigerian: 10, Afrobeats: 9, Gospel: 6, Traditional: 6, "Hip-Hop": 5, "R&B": 4, Highlife: 3, Pop: 2 } },
+  { code: "gh", label: "Ghana", genres: { Highlife: 9, Afrobeats: 7, Traditional: 5, Gospel: 4, "Hip-Hop": 3, "R&B": 3 } },
   { code: "us", label: "United States", genres: { "Hip-Hop": 9, "R&B": 8, Pop: 7, Gospel: 4, Blues: 4, Afrobeats: 2 } },
   { code: "gb", label: "United Kingdom", genres: { Pop: 8, "R&B": 7, "Hip-Hop": 7, Afrobeats: 5, Gospel: 2 } },
   { code: "ca", label: "Canada", genres: { Pop: 8, "R&B": 7, "Hip-Hop": 6, Gospel: 3, Afrobeats: 2 } },
@@ -74,7 +74,7 @@ const trendingCountries = [
   { code: "nl", label: "Netherlands", genres: { Pop: 8, "Hip-Hop": 6, "R&B": 5, Afrobeats: 4, Gospel: 2 } },
   { code: "it", label: "Italy", genres: { Pop: 9, "R&B": 4, "Hip-Hop": 4, Gospel: 3, Afrobeats: 2 } },
   { code: "es", label: "Spain", genres: { Pop: 9, "R&B": 5, "Hip-Hop": 4, Afrobeats: 3, Gospel: 2 } },
-  { code: "tr", label: "Turkey", genres: { Pop: 9, "Hip-Hop": 5, "R&B": 4, Gospel: 2, Afrobeats: 2 } },
+  { code: "tr", label: "Turkey", genres: { Turkish: 10, Traditional: 7, Pop: 9, "Hip-Hop": 5, "R&B": 4, Gospel: 2, Afrobeats: 2 } },
   { code: "sr", label: "Suriname", genres: { Pop: 7, Afrobeats: 6, Gospel: 5, "R&B": 4, "Hip-Hop": 3 } },
   { code: "cd", label: "Congo", genres: { Gospel: 7, Afrobeats: 6, "R&B": 5, Pop: 4, "Hip-Hop": 3 } },
 ];
@@ -289,6 +289,7 @@ export default function HomePage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(seedSongs[0].duration);
   const [volume, setVolume] = useState(0.72);
+  const [deviceStatus, setDeviceStatus] = useState("");
   const [selectedArtist, setSelectedArtist] = useState(artists[0].id);
   const [uploadForm, setUploadForm] = useState({ title: "", artist: "", album: "", genre: "Indie", audio: "", cover: "", audioFile: null, coverFile: null, lyrics: "" });
 
@@ -832,6 +833,45 @@ export default function HomePage() {
     return source === "local" || (source === "cloud" && user?.cloud && song.ownerId === user.id);
   }
 
+  async function chooseAudioOutput() {
+    const audio = audioRef.current;
+    if (audio?.setSinkId && navigator.mediaDevices?.selectAudioOutput) {
+      try {
+        const device = await navigator.mediaDevices.selectAudioOutput();
+        await audio.setSinkId(device.deviceId);
+        setDeviceStatus(`Playing through ${device.label || "selected output"}.`);
+      } catch {
+        setDeviceStatus("Audio output selection was cancelled.");
+      }
+      return;
+    }
+    setDeviceStatus("Pair Bluetooth in your phone or computer settings, then play AURA through that device.");
+  }
+
+  async function openAirPlay() {
+    const audio = audioRef.current;
+    if (audio?.webkitShowPlaybackTargetPicker) {
+      audio.webkitShowPlaybackTargetPicker();
+      setDeviceStatus("Choose an AirPlay device.");
+      return;
+    }
+    setDeviceStatus("AirPlay is available through Safari/iOS playback controls when the device supports it.");
+  }
+
+  async function openCast() {
+    const audio = audioRef.current;
+    if (audio?.remote?.prompt) {
+      try {
+        await audio.remote.prompt();
+        setDeviceStatus("Choose a cast device.");
+      } catch {
+        setDeviceStatus("Cast selection was cancelled or no cast device was found.");
+      }
+      return;
+    }
+    setDeviceStatus("Cast needs a browser with Remote Playback support or a future Google Cast SDK setup.");
+  }
+
   const favoriteSongs = allSongs.filter((song) => favorites.includes(song.id));
 
   return (
@@ -888,9 +928,9 @@ export default function HomePage() {
       </div>
 
       <footer className="player">
-        <audio ref={audioRef} src={currentSong.audio} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || currentSong.duration)} onEnded={() => { recordEvent(currentSong.id, "complete"); nextSong(1, null); }} volume={volume} />
+        <audio ref={audioRef} src={currentSong.audio} x-webkit-airplay="allow" onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || currentSong.duration)} onEnded={() => { recordEvent(currentSong.id, "complete"); nextSong(1, null); }} volume={volume} />
         <div className="mini"><img src={currentSong.cover} alt="" /><div className="track-title"><strong>{currentSong.title}</strong><span>{currentArtist?.name || currentSong.artist}</span></div></div>
-        <div className="controls"><div className="control-buttons"><button className="bare-btn" onClick={() => nextSong(-1)} title="Previous"><SkipBack size={18} /></button><button className="play-btn" onClick={togglePlay} title="Play or pause">{isPlaying ? <Pause size={20} /> : <Play size={20} />}</button><button className="bare-btn" onClick={() => nextSong(1)} title="Next"><SkipForward size={18} /></button></div><div className="progress"><span>{secondsToTime(currentTime)}</span><input type="range" min="0" max={duration || 0} value={Math.min(currentTime, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audioRef.current) audioRef.current.currentTime = value; setCurrentTime(value); }} /><span>{secondsToTime(duration)}</span></div></div>
+        <div className="controls"><div className="control-buttons"><button className="bare-btn" onClick={() => nextSong(-1)} title="Previous"><SkipBack size={18} /></button><button className="play-btn" onClick={togglePlay} title="Play or pause">{isPlaying ? <Pause size={20} /> : <Play size={20} />}</button><button className="bare-btn" onClick={() => nextSong(1)} title="Next"><SkipForward size={18} /></button><button className="bare-btn device-btn" onClick={chooseAudioOutput} title="Bluetooth or audio output" aria-label="Bluetooth or audio output"><Bluetooth size={17} /></button><button className="bare-btn device-btn" onClick={openAirPlay} title="AirPlay" aria-label="AirPlay"><Airplay size={17} /></button><button className="bare-btn device-btn" onClick={openCast} title="Cast" aria-label="Cast"><Cast size={17} /></button></div><div className="progress"><span>{secondsToTime(currentTime)}</span><input type="range" min="0" max={duration || 0} value={Math.min(currentTime, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audioRef.current) audioRef.current.currentTime = value; setCurrentTime(value); }} /><span>{secondsToTime(duration)}</span></div>{deviceStatus && <span className="device-status">{deviceStatus}</span>}</div>
         <label className="volume"><Volume2 size={17} /><input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => { const value = Number(event.target.value); setVolume(value); if (audioRef.current) audioRef.current.volume = value; }} /></label>
       </footer>
 

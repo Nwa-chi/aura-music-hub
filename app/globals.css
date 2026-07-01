@@ -325,7 +325,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .controls { min-width: 0; display: grid; gap: 3px; }
 .control-buttons { display: flex; justify-content: center; align-items: center; gap: 5px; }
 .play-btn { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #03131c; background: var(--brand); }
+.device-btn { color: var(--muted); }
+.device-btn:hover { color: var(--brand); }
 .progress { display: grid; grid-template-columns: 38px minmax(0, 1fr) 38px; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
+.device-status { display: block; overflow: hidden; color: var(--muted); font-size: 11px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 input[type="range"] { width: 100%; accent-color: var(--brand); }
 .volume { display: flex; align-items: center; gap: 7px; }
 
