@@ -30,3 +30,11 @@
 - Android version code: 4
 - iOS build number: 4
 - Notes: Make owner publish button trigger Cloudflare deployment
+
+## 1.0.4
+
+- Status: prepared
+- Prepared: 2026-07-01T22:24:53.127Z
+- Android version code: 5
+- iOS build number: 5
+- Notes: Make admin dashboard catalog cards clickable

@@ -1,10 +1,10 @@
 {
   "name": "AURA",
-  "version": "1.0.3",
-  "androidVersionCode": 4,
-  "iosBuildNumber": 4,
+  "version": "1.0.4",
+  "androidVersionCode": 5,
+  "iosBuildNumber": 5,
   "releasedAt": null,
-  "preparedAt": "2026-07-01T22:15:04.657Z",
+  "preparedAt": "2026-07-01T22:24:53.127Z",
   "status": "prepared",
-  "notes": "Make owner publish button trigger Cloudflare deployment"
+  "notes": "Make admin dashboard catalog cards clickable"
 }
