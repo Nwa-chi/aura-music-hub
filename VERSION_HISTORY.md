@@ -38,3 +38,11 @@
 - Android version code: 5
 - iOS build number: 5
 - Notes: Make admin dashboard catalog cards clickable
+
+## 1.0.5
+
+- Status: prepared
+- Prepared: 2026-07-01T22:29:39.580Z
+- Android version code: 6
+- iOS build number: 6
+- Notes: Make all admin dashboard cards interactive
