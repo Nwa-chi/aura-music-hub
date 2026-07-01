@@ -1,10 +1,10 @@
 {
   "name": "AURA",
-  "version": "1.0.1",
-  "androidVersionCode": 2,
-  "iosBuildNumber": 2,
+  "version": "1.0.2",
+  "androidVersionCode": 3,
+  "iosBuildNumber": 3,
   "releasedAt": null,
-  "preparedAt": "2026-07-01T15:21:20.735Z",
+  "preparedAt": "2026-07-01T22:03:14.729Z",
   "status": "prepared",
-  "notes": "Add saved versioning workflow"
+  "notes": "Add owner review report and Highlife/Blues collections"
 }

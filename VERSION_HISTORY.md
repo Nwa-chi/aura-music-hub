@@ -14,3 +14,11 @@
 - Android version code: 2
 - iOS build number: 2
 - Notes: Add saved versioning workflow
+
+## 1.0.2
+
+- Status: prepared
+- Prepared: 2026-07-01T22:03:14.729Z
+- Android version code: 3
+- iOS build number: 3
+- Notes: Add owner review report and Highlife/Blues collections
