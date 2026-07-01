@@ -75,6 +75,10 @@ const ownerChangeReport = `# Owner-Only Change Report
 
 This report is for the owner/admin. Do not use it as public release notes unless you intentionally publish it.
 
+## Release Version Policy
+
+This package is normalized as AURA ${packageJson.version || "1.0.0"}. The public app remains ${versionJson.publishedVersion || "the previous approved version"} until the owner manually publishes this prepared build.
+
 ## Recent Commits
 
 \`\`\`text

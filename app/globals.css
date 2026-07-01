@@ -186,6 +186,33 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .admin-panel { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--panel); }
 .admin-panel .section-head { align-items: flex-start; }
 .admin-panel .section-head p { margin: 4px 0 0; }
+.build-review-panel { border-color: rgba(56, 189, 248, 0.34); background: linear-gradient(135deg, rgba(56, 189, 248, 0.09), rgba(255, 255, 255, 0.012)), var(--panel); }
+.build-review-grid { display: grid; grid-template-columns: minmax(320px, 1.08fr) minmax(300px, 0.92fr); gap: 14px; align-items: stretch; }
+.build-preview-shell { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #06090d; }
+.build-preview-top { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 10px 12px; background: rgba(255, 255, 255, 0.035); }
+.build-preview-top span, .release-version-card span, .release-artifacts span { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; }
+.build-preview-top strong { font-size: 13px; }
+.build-preview-frame { width: 100%; height: min(72vh, 680px); min-height: 520px; display: block; border: 0; background: var(--bg); }
+.build-review-detail { min-width: 0; display: grid; gap: 12px; align-content: start; }
+.release-compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.release-version-card { min-width: 0; display: grid; align-content: start; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: rgba(255, 255, 255, 0.025); }
+.release-version-card.active { border-color: rgba(56, 189, 248, 0.42); background: rgba(56, 189, 248, 0.08); }
+.release-version-card strong { font-size: 32px; line-height: 1; }
+.release-version-card p { margin: 0; color: var(--muted); line-height: 1.45; }
+.release-version-card a { text-decoration: none; }
+.release-highlights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.release-highlight-card { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: rgba(255, 255, 255, 0.025); }
+.release-highlight-card span { display: inline-flex; border-radius: 999px; padding: 4px 8px; color: #03131c; background: var(--brand); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.release-highlight-card strong { display: block; margin-top: 10px; }
+.release-highlight-card p { margin: 5px 0 0; color: var(--muted); line-height: 1.45; }
+.release-review-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.release-review-pill { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 10px; color: var(--text); background: rgba(255, 255, 255, 0.02); text-align: left; cursor: pointer; }
+.release-review-pill:hover { border-color: rgba(56, 189, 248, 0.48); background: var(--panel-2); }
+.release-review-pill:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.release-review-pill span { display: block; overflow: hidden; color: var(--muted); font-size: 12px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+.release-review-pill strong { display: block; margin-top: 5px; font-size: 26px; }
+.release-artifacts { min-width: 0; display: grid; gap: 7px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: rgba(255, 255, 255, 0.025); }
+.release-artifacts code { display: block; overflow: hidden; border-radius: 7px; padding: 8px; color: var(--text); background: var(--panel-2); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .publish-panel { border-color: rgba(56, 189, 248, 0.34); background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(255, 255, 255, 0.01)), var(--panel); }
 .publish-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 12px; margin-bottom: 14px; }
 .publish-readiness, .publish-checks { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: rgba(255, 255, 255, 0.025); }
@@ -320,6 +347,8 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
   .admin-hero { grid-template-columns: 1fr; min-height: 0; }
   .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-layout { grid-template-columns: 1fr; }
+  .build-review-grid { grid-template-columns: 1fr; }
+  .build-preview-frame { height: 560px; min-height: 460px; }
   .publish-grid { grid-template-columns: 1fr; }
   .change-watch-grid { grid-template-columns: 1fr; }
   .pipeline-grid { grid-template-columns: 1fr; }
@@ -352,6 +381,8 @@ input[type="range"] { width: 100%; accent-color: var(--brand); }
   .admin-hero { padding: 16px; }
   .admin-hero h1 { font-size: 36px; }
   .album-grid, .playlist-grid, .artist-grid, .dashboard, .admin-kpi-grid, .form-grid { grid-template-columns: 1fr; }
+  .release-compare-grid, .release-highlights, .release-review-strip { grid-template-columns: 1fr; }
+  .build-preview-frame { height: 520px; min-height: 420px; }
   .admin-row, .admin-row.compact { grid-template-columns: 1fr; }
   .owner-change-row { grid-template-columns: 1fr; }
   .owner-change-row time { justify-self: start; }

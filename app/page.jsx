@@ -980,6 +980,24 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
     rejected.length ? `${rejected.length} rejected release${rejected.length === 1 ? "" : "s"} need correction` : "",
     missingLyrics.length ? `${missingLyrics.length} track${missingLyrics.length === 1 ? "" : "s"} missing synced lyrics` : "",
   ].filter(Boolean);
+  const preparedVersion = versionInfo?.version || "1.0.2";
+  const publishedVersion = versionInfo?.publishedVersion || "1.0.1";
+  const publicUrl = versionInfo?.publicUrl || "https://www.auramusichub.com/";
+  const reviewUrl = versionInfo?.reviewUrl || "/?ownerPreview=1";
+  const releaseHighlights = Array.isArray(versionInfo?.highlights) && versionInfo.highlights.length ? versionInfo.highlights : [
+    { title: "Owner build review", status: "ready", detail: "Admin can inspect the prepared build before public release." },
+    { title: "Manual publish control", status: "ready", detail: "Publishing stays behind the owner dashboard and Cloudflare deploy hook." },
+    { title: "Private change watch", status: "ready", detail: "Owner-only release events stay hidden from public listeners." },
+  ];
+  const releaseArtifacts = Array.isArray(versionInfo?.artifacts) && versionInfo.artifacts.length ? versionInfo.artifacts : [
+    "outputs/manual-release/web",
+    "outputs/manual-release/owner-change-report.md",
+    "outputs/manual-release/publish-checklist.md",
+  ];
+  const collectionReview = ["Afrobeats", "Highlife", "Blues", "Gospel"].map((tag) => ({
+    tag,
+    count: catalog.filter((song) => collectionTagsFor(song).includes(tag)).length,
+  }));
 
   function jumpToAdminSection(sectionId) {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1077,6 +1095,7 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
     </section>}
     <div className="admin-kpi-grid">
       <AdminStatCard icon={Music2} label="Published catalog" value={published.length} detail={`${uniqueArtists.size} artists represented`} onClick={() => jumpToAdminSection("admin-catalog-table")} />
+      <AdminStatCard icon={Globe2} label="Prepared build" value={preparedVersion} detail={`Public remains ${publishedVersion} until owner approval`} onClick={() => jumpToAdminSection("admin-build-review")} />
       <AdminStatCard icon={CalendarClock} label="Release queue" value={pending.length} detail={`${rejected.length} rejected items need owner attention`} tone="warn" onClick={() => jumpToAdminSection("admin-release-pipeline")} />
       <AdminStatCard icon={Users} label="Listener signals" value={listeningEvents.length} detail={`${completionRate}% completion · ${skipRate}% skips`} onClick={() => jumpToAdminSection("admin-audience-pulse")} />
       <AdminStatCard icon={Shield} label="Cloud-controlled" value={cloudRows.length} detail="Rows backed by Supabase moderation" onClick={() => jumpToAdminSection("admin-catalog-sources")} />
@@ -1087,6 +1106,57 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
       <AdminStatCard icon={Download} label="Storage estimate" value={`${adminStats.storageMb ?? Math.round(cloudRows.length * 4.5)} MB`} detail="Catalog storage estimate until R2 usage is wired in" onClick={() => jumpToAdminSection("admin-catalog-sources")} />
     </div>
     <div className="admin-layout">
+      <section id="admin-build-review" className="admin-panel admin-wide build-review-panel">
+        <div className="section-head">
+          <div>
+            <h2>Build review</h2>
+            <p className="muted">Inspect the prepared private build before you decide whether it becomes the public AURA app.</p>
+          </div>
+          <Globe2 size={20} />
+        </div>
+        <div className="build-review-grid">
+          <div className="build-preview-shell">
+            <div className="build-preview-top">
+              <span>Prepared preview</span>
+              <strong>AURA {preparedVersion}</strong>
+            </div>
+            <iframe className="build-preview-frame" title={`AURA ${preparedVersion} prepared build preview`} src={reviewUrl} />
+          </div>
+          <div className="build-review-detail">
+            <div className="release-compare-grid">
+              <article className="release-version-card">
+                <span>Public right now</span>
+                <strong>{publishedVersion}</strong>
+                <p>Current live version at auramusichub.com. This remains public until you approve a release.</p>
+                <a className="secondary-btn" href={publicUrl} target="_blank" rel="noreferrer"><Globe2 size={16} />Open live app</a>
+              </article>
+              <article className="release-version-card active">
+                <span>Prepared for review</span>
+                <strong>{preparedVersion}</strong>
+                <p>{versionInfo?.notes || "Private owner build waiting for review."}</p>
+                <a className="primary-btn" href={reviewUrl}><Play size={16} />Open preview</a>
+              </article>
+            </div>
+            <div className="release-highlights">
+              {releaseHighlights.map((item) => <article className="release-highlight-card" key={item.title}>
+                <span>{item.status || "ready"}</span>
+                <strong>{item.title}</strong>
+                <p>{item.detail}</p>
+              </article>)}
+            </div>
+            <div className="release-review-strip">
+              {collectionReview.map((item) => <button className="release-review-pill" type="button" key={item.tag} onClick={() => jumpToAdminSection("admin-catalog-table")}>
+                <span>{item.tag}</span>
+                <strong>{item.count}</strong>
+              </button>)}
+            </div>
+            <div className="release-artifacts">
+              <span>Owner release package</span>
+              {releaseArtifacts.map((artifact) => <code key={artifact}>{artifact}</code>)}
+            </div>
+          </div>
+        </div>
+      </section>
       <section id="admin-private-change-watch" className="admin-panel admin-wide change-watch-panel">
         <div className="section-head">
           <div>

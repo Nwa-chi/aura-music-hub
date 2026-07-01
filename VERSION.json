@@ -1,10 +1,46 @@
 {
   "name": "AURA",
   "version": "1.0.2",
+  "publishedVersion": "1.0.1",
   "androidVersionCode": 3,
   "iosBuildNumber": 3,
   "releasedAt": null,
   "preparedAt": "2026-07-02T00:00:00.000Z",
   "status": "prepared",
-  "notes": "Owner publish workflow, private change review, interactive admin dashboard, and corrected collection tags"
+  "publicUrl": "https://www.auramusichub.com/",
+  "reviewUrl": "/?ownerPreview=1",
+  "notes": "Owner publish workflow, private change review, interactive admin dashboard, and corrected collection tags",
+  "highlights": [
+    {
+      "title": "Owner build review",
+      "status": "ready",
+      "detail": "Admin can inspect the prepared 1.0.2 build before public release."
+    },
+    {
+      "title": "Manual publish control",
+      "status": "ready",
+      "detail": "Publishing stays behind the owner dashboard and Cloudflare deploy hook."
+    },
+    {
+      "title": "Private change watch",
+      "status": "ready",
+      "detail": "Owner-only release events remain hidden from public listeners."
+    },
+    {
+      "title": "Interactive operations cards",
+      "status": "ready",
+      "detail": "Dashboard cards open catalog, release, trust, account, and audit details."
+    },
+    {
+      "title": "Collection cleanup",
+      "status": "ready",
+      "detail": "Vibe And Bubble is Afrobeats only; Blues is tagged separately and Highlife is waiting for a true Highlife track."
+    }
+  ],
+  "artifacts": [
+    "outputs/manual-release/web",
+    "outputs/manual-release/owner-change-report.md",
+    "outputs/manual-release/publish-checklist.md",
+    "outputs/manual-release/store-metadata.json"
+  ]
 }
