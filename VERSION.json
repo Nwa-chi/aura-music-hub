@@ -1,10 +1,10 @@
 {
   "name": "AURA",
-  "version": "1.0.6",
-  "androidVersionCode": 7,
-  "iosBuildNumber": 7,
+  "version": "1.0.2",
+  "androidVersionCode": 3,
+  "iosBuildNumber": 3,
   "releasedAt": null,
-  "preparedAt": "2026-07-01T22:33:20.487Z",
+  "preparedAt": "2026-07-02T00:00:00.000Z",
   "status": "prepared",
-  "notes": "Fix collection tag song membership"
+  "notes": "Owner publish workflow, private change review, interactive admin dashboard, and corrected collection tags"
 }

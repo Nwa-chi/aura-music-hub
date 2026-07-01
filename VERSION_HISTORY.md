@@ -9,48 +9,16 @@
 
 ## 1.0.1
 
-- Status: prepared
-- Prepared: 2026-07-01T15:21:20.735Z
+- Status: published
+- Published: 2026-07-01T15:21:20.735Z
 - Android version code: 2
 - iOS build number: 2
-- Notes: Add saved versioning workflow
+- Notes: Previous public AURA release.
 
 ## 1.0.2
 
 - Status: prepared
-- Prepared: 2026-07-01T22:03:14.729Z
+- Prepared: 2026-07-02T00:00:00.000Z
 - Android version code: 3
 - iOS build number: 3
-- Notes: Add owner review report and Highlife/Blues collections
-
-## 1.0.3
-
-- Status: prepared
-- Prepared: 2026-07-01T22:15:04.657Z
-- Android version code: 4
-- iOS build number: 4
-- Notes: Make owner publish button trigger Cloudflare deployment
-
-## 1.0.4
-
-- Status: prepared
-- Prepared: 2026-07-01T22:24:53.127Z
-- Android version code: 5
-- iOS build number: 5
-- Notes: Make admin dashboard catalog cards clickable
-
-## 1.0.5
-
-- Status: prepared
-- Prepared: 2026-07-01T22:29:39.580Z
-- Android version code: 6
-- iOS build number: 6
-- Notes: Make all admin dashboard cards interactive
-
-## 1.0.6
-
-- Status: prepared
-- Prepared: 2026-07-01T22:33:20.487Z
-- Android version code: 7
-- iOS build number: 7
-- Notes: Fix collection tag song membership
+- Notes: Owner publish workflow, private change review, interactive admin dashboard, Highlife/Blues collections, and corrected collection tag membership.
