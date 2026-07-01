@@ -60,16 +60,16 @@ const languages = [
   ["srn", "Sranan Tongo"], ["ln", "Lingála (Congo)"], ["fr", "Français"], ["pt", "Português"],
   ["de", "Deutsch"], ["ja", "日本語"], ["ar", "العربية"], ["hi", "हिन्दी"],
 ];
-const genreOptions = ["All", "Afrobeats", "Nigerian", "Turkish", "Traditional", "Highlife", "Blues", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
+const genreOptions = ["All", "Afrobeats", "Nigerian", "Turkish", "Traditional", "Jamaican Hip-Hop", "Reggae", "Highlife", "Blues", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
 const trendingCountries = [
-  { code: "global", label: "Global", genres: { Pop: 5, "Hip-Hop": 5, "R&B": 4, Afrobeats: 4, Nigerian: 3, Turkish: 3, Traditional: 2, Gospel: 2, Blues: 2, Highlife: 1 } },
+  { code: "global", label: "Global", genres: { Pop: 5, "Hip-Hop": 5, "R&B": 4, Afrobeats: 4, Nigerian: 3, Turkish: 3, Reggae: 3, "Jamaican Hip-Hop": 3, Traditional: 2, Gospel: 2, Blues: 2, Highlife: 1 } },
   { code: "ng", label: "Nigeria", genres: { Nigerian: 10, Afrobeats: 9, Gospel: 6, Traditional: 6, "Hip-Hop": 5, "R&B": 4, Highlife: 3, Pop: 2 } },
   { code: "gh", label: "Ghana", genres: { Highlife: 9, Afrobeats: 7, Traditional: 5, Gospel: 4, "Hip-Hop": 3, "R&B": 3 } },
   { code: "us", label: "United States", genres: { "Hip-Hop": 9, "R&B": 8, Pop: 7, Gospel: 4, Blues: 4, Afrobeats: 2 } },
   { code: "gb", label: "United Kingdom", genres: { Pop: 8, "R&B": 7, "Hip-Hop": 7, Afrobeats: 5, Gospel: 2 } },
   { code: "ca", label: "Canada", genres: { Pop: 8, "R&B": 7, "Hip-Hop": 6, Gospel: 3, Afrobeats: 2 } },
   { code: "za", label: "South Africa", genres: { Afrobeats: 6, Gospel: 6, "Hip-Hop": 5, Pop: 4, "R&B": 4 } },
-  { code: "jm", label: "Jamaica", genres: { Gospel: 6, Afrobeats: 5, "R&B": 4, "Hip-Hop": 4, Pop: 3 } },
+  { code: "jm", label: "Jamaica", genres: { Reggae: 10, "Jamaican Hip-Hop": 9, Gospel: 6, Afrobeats: 5, "R&B": 4, "Hip-Hop": 4, Pop: 3 } },
   { code: "br", label: "Brazil", genres: { Pop: 8, Gospel: 5, "Hip-Hop": 4, "R&B": 4, Afrobeats: 3 } },
   { code: "fr", label: "France", genres: { Pop: 8, "Hip-Hop": 7, "R&B": 5, Afrobeats: 4, Gospel: 2 } },
   { code: "de", label: "Germany", genres: { Pop: 8, "Hip-Hop": 6, "R&B": 4, Gospel: 3, Afrobeats: 2 } },
@@ -1174,7 +1174,7 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
     "outputs/manual-release/owner-change-report.md",
     "outputs/manual-release/publish-checklist.md",
   ];
-  const collectionReview = ["Afrobeats", "Highlife", "Blues", "Gospel"].map((tag) => ({
+  const collectionReview = ["Afrobeats", "Jamaican Hip-Hop", "Reggae", "Highlife", "Blues", "Gospel"].map((tag) => ({
     tag,
     count: catalog.filter((song) => collectionTagsFor(song).includes(tag)).length,
   }));
