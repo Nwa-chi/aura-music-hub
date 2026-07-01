@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BarChart3, CheckCircle2, Disc3, Download, Globe2, Heart, Home, Library, LogIn,
-  Mic2, Moon, Music2, Pause, Play, Search, Shield, SkipBack, SkipForward, Sparkles,
+  BarChart3, CheckCircle2, Clock3, Disc3, Download, Globe2, Heart, Home, Library, ListChecks, LogIn,
+  Mic2, Moon, Music2, Pause, Play, Radio, Search, Shield, SkipBack, SkipForward, Sparkles,
   Sun, UploadCloud, User, UserPlus, Volume2, X,
 } from "lucide-react";
 import { artists, getArtist, playlists, secondsToTime, songs as seedSongs } from "../lib/music";
@@ -152,6 +152,38 @@ function buildAuraMix(songs, listeningEvents, favorites, followedArtists) {
   };
 }
 
+function songStatus(song) {
+  return song?.status || (song?.uploadedAt ? "pending" : "published");
+}
+
+function songSourceType(song) {
+  if (song?.sourceType) return song.sourceType;
+  if (song?.uploadedAt) return "local";
+  if (song?.source) return "starter";
+  return "catalog";
+}
+
+function sourceLabel(song) {
+  const source = songSourceType(song);
+  if (source === "cloud") return "Supabase";
+  if (source === "local") return "Local upload";
+  if (source === "starter") return "Starter catalog";
+  return "Catalog";
+}
+
+function shortDate(value) {
+  if (!value) return "Today";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Today";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function dateLabelFor(song) {
+  const value = song?.createdAt || song?.uploadedAt;
+  if (value) return shortDate(value);
+  return songSourceType(song) === "starter" ? "Starter catalog" : "No date";
+}
+
 function loadJson(key, fallback, legacyKey) {
   if (typeof window === "undefined") return fallback;
   try {
@@ -180,6 +212,7 @@ export default function HomePage() {
   const [showAccount, setShowAccount] = useState(false);
   const [accountStatus, setAccountStatus] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
+  const [adminStatus, setAdminStatus] = useState("");
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [currentId, setCurrentId] = useState(seedSongs[0].id);
@@ -267,8 +300,14 @@ export default function HomePage() {
   useEffect(() => {
     const client = getSupabase();
     if (!client) return;
-    client.from("songs").select("id,title,artist_name,album,genre,audio_url,cover_url,lyrics,created_at").eq("status", "published").order("created_at", { ascending: false }).then(({ data }) => {
-      if (!data) return;
+    let active = true;
+    let query = client
+      .from("songs")
+      .select("id,title,artist_name,album,genre,audio_url,cover_url,lyrics,status,owner_id,created_at")
+      .order("created_at", { ascending: false });
+    if (!isAdmin) query = query.eq("status", "published");
+    query.then(({ data }) => {
+      if (!active || !data) return;
       setCloudSongs(data.map((song) => ({
         id: song.id,
         title: song.title,
@@ -276,6 +315,10 @@ export default function HomePage() {
         album: song.album || "Single",
         genre: song.genre || "Indie",
         collectionTags: [song.genre || "Indie"],
+        status: song.status || "published",
+        ownerId: song.owner_id,
+        sourceType: "cloud",
+        createdAt: song.created_at,
         audio: song.audio_url,
         cover: song.cover_url || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
         lyrics: song.lyrics || [],
@@ -283,7 +326,8 @@ export default function HomePage() {
         plays: 0,
       })));
     });
-  }, []);
+    return () => { active = false; };
+  }, [isAdmin, user?.id]);
 
   useEffect(() => { document.documentElement.classList.toggle("light", theme === "light"); }, [theme]);
   useEffect(() => { if (view === "admin" && !isAdmin) setView("home"); }, [view, isAdmin]);
@@ -461,17 +505,22 @@ export default function HomePage() {
     const song = {
       id, title: uploadForm.title || "Untitled song", artist: uploadForm.artist || user?.name || "Independent artist",
       album: uploadForm.album || "Uploads", genre: uploadForm.genre, duration: 180, plays: 0, color: "#38bdf8",
-      collectionTags: [uploadForm.genre],
+      collectionTags: [uploadForm.genre], status: "pending", sourceType: client && user?.cloud ? "cloud" : "local",
       cover: coverUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
       audio: audioUrl,
       lyrics: parseLyrics(uploadForm.lyrics || "Your first uploaded lyric line\nAdd timestamps like [0:15] Chorus begins"), uploadedAt: new Date().toISOString(),
     };
     if (client && user?.cloud) {
-      const { error } = await client.from("songs").insert({
+      const { data, error } = await client.from("songs").insert({
         owner_id: user.id, title: song.title, artist_name: song.artist, album: song.album, genre: song.genre,
         audio_url: song.audio, cover_url: song.cover, lyrics: song.lyrics, status: "pending",
-      });
+      }).select("id,status,created_at").single();
       if (error) { setUploadStatus(error.message); return; }
+      if (data) {
+        song.id = data.id;
+        song.status = data.status || "pending";
+        song.createdAt = data.created_at;
+      }
       setUploadStatus("Uploaded. Your release is now in the moderation queue.");
     } else setUploadStatus("Saved in prototype mode on this device.");
     setUploads((items) => [song, ...items]); setCurrentId(id);
@@ -479,8 +528,32 @@ export default function HomePage() {
     if (!client) setView("library");
   }
 
+  async function updateSongStatus(songId, status) {
+    const song = allSongs.find((item) => item.id === songId);
+    if (!song) return;
+    const localOnly = songSourceType(song) === "local";
+    setAdminStatus(`Updating ${song.title}...`);
+    if (localOnly) {
+      setUploads((items) => items.map((item) => item.id === songId ? { ...item, status } : item));
+      setAdminStatus(`${song.title} marked ${status} in prototype mode.`);
+      return;
+    }
+    const client = getSupabase();
+    if (!client || !user?.cloud) {
+      setAdminStatus("Supabase is not connected, so only local prototype uploads can be moderated here.");
+      return;
+    }
+    const { error } = await client.from("songs").update({ status }).eq("id", songId);
+    if (error) {
+      setAdminStatus(error.message);
+      return;
+    }
+    setCloudSongs((items) => items.map((item) => item.id === songId ? { ...item, status } : item));
+    setUploads((items) => items.map((item) => item.id === songId ? { ...item, status } : item));
+    setAdminStatus(`${song.title} is now ${status}.`);
+  }
+
   const favoriteSongs = allSongs.filter((song) => favorites.includes(song.id));
-  const totalPlays = allSongs.reduce((sum, song) => sum + (song.plays || 0), 0);
 
   return (
     <main className="app-shell">
@@ -531,7 +604,7 @@ export default function HomePage() {
             <button className="primary-btn" type="submit"><UploadCloud size={18} />Submit for review</button>
           </form>
         </section>}
-        {view === "admin" && isAdmin && <section className="section"><PageTitle title="Admin dashboard" subtitle="Catalog, listening, and creator metrics for the platform." /><div className="dashboard"><Metric label="Songs" value={allSongs.length} /><Metric label="Artists" value={artists.length + uploads.length} /><Metric label="Plays" value={totalPlays.toLocaleString()} /><Metric label="Uploads" value={uploads.length} /></div><SongSection title="Moderation queue" songs={uploads.length ? uploads : allSongs.slice(0, 3)} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /></section>}
+        {view === "admin" && isAdmin && <AdminDashboard songs={allSongs} uploads={uploads} listeningEvents={listeningEvents} statusMessage={adminStatus} onPlay={playSong} onModerate={updateSongStatus} />}
       </div>
 
       <footer className="player">
@@ -595,5 +668,37 @@ function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, fol
   const artistSongs = songs.filter((song) => song.artistId === artist.id || song.artist === artist.name);
   const isFollowing = followedArtists.includes(artist.id);
   return <><section className="section"><div className="artist-grid">{artistList.map((item) => <button className={`artist-card ${item.id === artist.id ? "active" : ""}`} key={item.id} onClick={() => onSelect(item.id)}><img src={item.image} alt="" /><strong>{item.name}</strong><span>{item.genre}</span></button>)}</div></section><section className="section artist-profile"><img src={artist.image} alt="" /><div><p className="eyebrow">{artist.genre} · {artist.location}</p><h2>{artist.name}</h2><p>{artist.bio}</p><p className="muted">{artist.followers} followers</p><div className="button-row"><button className="primary-btn" onClick={() => onPlay(artistSongs[0]?.id)}><Play size={18} />Play artist</button><button className="secondary-btn" onClick={() => onFollow(artist.id)}>{isFollowing ? <CheckCircle2 size={18} /> : <UserPlus size={18} />}{isFollowing ? "Following" : "Follow"}</button></div></div></section></>;
+}
+function AdminDashboard({ songs, uploads, listeningEvents, statusMessage, onPlay, onModerate }) {
+  const catalog = songs.map((song) => ({ ...song, status: songStatus(song), sourceName: sourceLabel(song) }));
+  const reviewQueue = catalog.filter((song) => ["draft", "pending", "rejected"].includes(song.status) && ["cloud", "local"].includes(songSourceType(song)));
+  const published = catalog.filter((song) => song.status === "published");
+  const rejected = catalog.filter((song) => song.status === "rejected");
+  const cloudRows = catalog.filter((song) => songSourceType(song) === "cloud");
+  const uniqueArtists = new Set(catalog.map((song) => artistNameFor(song)).filter(Boolean));
+  const songById = new Map(catalog.map((song) => [song.id, song]));
+  const genreSignals = listeningEvents.reduce((items, event) => {
+    const song = songById.get(event.songId);
+    if (!song || event.type === "skip") return items;
+    const genre = song.genre || "Unsorted";
+    items[genre] = (items[genre] || 0) + (event.type === "favorite" ? 4 : event.type === "complete" ? 3 : 1);
+    return items;
+  }, {});
+  const topGenres = Object.entries(genreSignals).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const fallbackGenres = Object.entries(catalog.reduce((items, song) => {
+    const genre = song.genre || "Unsorted";
+    items[genre] = (items[genre] || 0) + 1;
+    return items;
+  }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const recentActivity = listeningEvents.slice(0, 6).map((event) => ({ ...event, song: songById.get(event.songId) })).filter((event) => event.song);
+
+  return <section className="section admin-shell"><PageTitle title="Owner dashboard" subtitle="Review uploads, control the catalog, and read listener signals from one place." />{statusMessage && <p className="form-status admin-status"><CheckCircle2 size={17} />{statusMessage}</p>}<div className="dashboard"><Metric label="Published songs" value={published.length} /><Metric label="Pending review" value={reviewQueue.filter((song) => song.status === "pending").length} /><Metric label="Cloud songs" value={cloudRows.length} /><Metric label="Listening signals" value={listeningEvents.length} /></div><div className="admin-layout"><section className="admin-panel admin-wide"><div className="section-head"><div><h2>Review queue</h2><p className="muted">Approve clean uploads or reject songs that need more rights, metadata, or audio fixes.</p></div><ListChecks size={20} /></div><div className="admin-list">{reviewQueue.length === 0 && <p className="empty-state muted">No uploads are waiting for review.</p>}{reviewQueue.map((song) => <AdminSongRow key={song.id} song={song} onPlay={onPlay} onModerate={onModerate} />)}</div></section><section className="admin-panel"><div className="section-head"><h2>Listener signals</h2><Radio size={20} /></div><div className="insight-list">{recentActivity.length === 0 && <p className="muted">No listener activity yet. Plays, skips, favorites, and completed songs will appear here.</p>}{recentActivity.map((event) => <div className="insight-row" key={`${event.songId}-${event.type}-${event.at}`}><span>{event.type}</span><strong>{event.song.title}</strong><small>{shortDate(event.at)}</small></div>)}</div></section><section className="admin-panel"><div className="section-head"><h2>Top genres</h2><BarChart3 size={20} /></div><div className="insight-list">{(topGenres.length ? topGenres : fallbackGenres).map(([genre, count]) => <div className="insight-bar" key={genre}><span>{genre}</span><meter min="0" max={Math.max(...(topGenres.length ? topGenres : fallbackGenres).map(([, value]) => value), 1)} value={count} /><strong>{count}</strong></div>)}</div></section><section className="admin-panel admin-wide"><div className="section-head"><div><h2>Catalog control</h2><p className="muted">{catalog.length} songs · {uniqueArtists.size} artists · {uploads.length} device uploads · {rejected.length} rejected</p></div><Clock3 size={20} /></div><div className="admin-list compact">{catalog.map((song) => <AdminSongRow key={song.id} song={song} onPlay={onPlay} onModerate={onModerate} compact />)}</div></section></div></section>;
+}
+function AdminSongRow({ song, onPlay, onModerate, compact = false }) {
+  const status = songStatus(song);
+  const source = songSourceType(song);
+  const canModerate = ["cloud", "local"].includes(source);
+  const artist = artistNameFor(song) || "Unknown artist";
+  return <article className={`admin-row ${compact ? "compact" : ""}`}><button className="admin-track" onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span><strong>{song.title}</strong><small>{artist} · {song.genre || "Unsorted"}</small></span></button><span className={`status-pill ${status}`}>{status}</span><span className="admin-source">{song.sourceName}<small>{dateLabelFor(song)}</small></span><div className="admin-actions"><button className="secondary-btn" onClick={() => onPlay(song.id)}><Play size={15} />Preview</button>{canModerate && <button className="primary-btn" disabled={status === "published"} onClick={() => onModerate(song.id, "published")}>Publish</button>}{canModerate && <button className="secondary-btn danger-btn" disabled={status === "rejected"} onClick={() => onModerate(song.id, "rejected")}>Reject</button>}</div></article>;
 }
 function Metric({ label, value }) { return <div className="metric"><span>{label}</span><strong>{value}</strong><BarChart3 size={20} /></div>; }
