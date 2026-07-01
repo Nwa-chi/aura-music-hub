@@ -22,3 +22,11 @@
 - Android version code: 3
 - iOS build number: 3
 - Notes: Add owner review report and Highlife/Blues collections
+
+## 1.0.3
+
+- Status: prepared
+- Prepared: 2026-07-01T22:15:04.657Z
+- Android version code: 4
+- iOS build number: 4
+- Notes: Make owner publish button trigger Cloudflare deployment
