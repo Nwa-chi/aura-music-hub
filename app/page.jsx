@@ -52,6 +52,17 @@ const languages = [
 ];
 const genreOptions = ["All", "Afrobeats", "Pop", "R&B", "Hip-Hop", "Gospel", "Electronic", "Jazz", "Indie"];
 
+function uniqueSongsById(items) {
+  return Array.from(items.reduce((songs, song) => {
+    if (song?.id && !songs.has(song.id)) songs.set(song.id, song);
+    return songs;
+  }, new Map()).values());
+}
+
+function collectionTagsFor(song) {
+  return Array.from(new Set([song?.genre, ...(song?.collectionTags || [])].filter(Boolean)));
+}
+
 function loadJson(key, fallback, legacyKey) {
   if (typeof window === "undefined") return fallback;
   try {
@@ -174,6 +185,7 @@ export default function HomePage() {
         artist: song.artist_name,
         album: song.album || "Single",
         genre: song.genre || "Indie",
+        collectionTags: [song.genre || "Indie"],
         audio: song.audio_url,
         cover: song.cover_url || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
         lyrics: song.lyrics || [],
@@ -196,7 +208,7 @@ export default function HomePage() {
   useEffect(() => { window.localStorage.setItem(storageKeys.followedArtists, JSON.stringify(followedArtists)); }, [followedArtists]);
   useEffect(() => { user ? window.localStorage.setItem(storageKeys.user, JSON.stringify(user)) : window.localStorage.removeItem(storageKeys.user); }, [user]);
 
-  const allSongs = useMemo(() => [...uploads, ...(cloudSongs.length ? cloudSongs : seedSongs)], [uploads, cloudSongs]);
+  const allSongs = useMemo(() => uniqueSongsById([...uploads, ...cloudSongs, ...seedSongs]), [uploads, cloudSongs]);
   const currentSong = allSongs.find((song) => song.id === currentId) ?? allSongs[0];
   const currentArtist = currentSong.artistId ? getArtist(currentSong.artistId) : { name: currentSong.artist };
   const featuredSong = cloudSongs[0] || seedSongs[0];
@@ -206,7 +218,7 @@ export default function HomePage() {
     return allSongs.filter((song) => {
       const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist;
       const matchesSearch = !term || [song.title, artist, song.album].some((value) => value?.toLowerCase().includes(term));
-      return matchesSearch && (genre === "All" || song.genre === genre);
+      return matchesSearch && (genre === "All" || collectionTagsFor(song).includes(genre));
     });
   }, [allSongs, query, genre]);
   const activeLyricIndex = useMemo(() => (currentSong.lyrics ?? []).reduce((active, line, index) => currentTime >= line.time ? index : active, 0), [currentSong, currentTime]);
@@ -344,6 +356,7 @@ export default function HomePage() {
     const song = {
       id, title: uploadForm.title || "Untitled song", artist: uploadForm.artist || user?.name || "Independent artist",
       album: uploadForm.album || "Uploads", genre: uploadForm.genre, duration: 180, plays: 0, color: "#38bdf8",
+      collectionTags: [uploadForm.genre],
       cover: coverUrl || "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=900&q=80",
       audio: audioUrl,
       lyrics: parseLyrics(uploadForm.lyrics || "Your first uploaded lyric line\nAdd timestamps like [0:15] Chorus begins"), uploadedAt: new Date().toISOString(),
@@ -396,7 +409,7 @@ export default function HomePage() {
           <Lyrics title={t.lyrics} song={currentSong} artist={currentArtist} activeIndex={activeLyricIndex} />
         </>}
 
-        {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists onPlay={playSong} /></>}
+        {view === "library" && <><PageTitle title={t.library} subtitle="Saved music, uploads, and playlists." /><SongSection title="Your library" songs={filteredSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} trackLabel={t.tracks} /><SongSection title="Favorites" songs={favoriteSongs} onPlay={playSong} favorites={favorites} onFavorite={toggleFavorite} empty="Tap the heart beside a song to save it here." trackLabel={t.tracks} /><Playlists songs={allSongs} onPlay={playSong} onSelectTag={(tag) => { setQuery(""); setGenre(tag); setView("home"); }} /></>}
         {view === "artists" && <><PageTitle title={t.artists} subtitle="Meet the voices shaping AURA." /><Artists songs={allSongs} useCloudCatalog={cloudSongs.length > 0} selectedArtist={selectedArtist} onSelect={setSelectedArtist} onPlay={playSong} followedArtists={followedArtists} onFollow={toggleFollow} /></>}
         {view === "upload" && <section className="section panel">
           <PageTitle title="Upload songs and lyrics" subtitle={isCloudConfigured ? "Secure uploads enter moderation before appearing in AURA." : "Prototype mode is active. Connect Supabase and R2 to accept secure file uploads."} />
@@ -434,7 +447,7 @@ function Recommendations({ title, picks, onPlay }) {
 }
 
 function SongSection({ title, songs, onPlay, favorites, onFavorite, empty, trackLabel = "tracks" }) {
-  return <section className="section"><div className="section-head"><h2>{title}</h2><span className="muted">{songs.length} {trackLabel}</span></div><div className="track-list">{songs.length === 0 && <div className="empty-state muted">{empty || "No songs found."}</div>}{songs.map((song, index) => { const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist; return <div className="track-row" key={song.id}><span className="track-number">{String(index + 1).padStart(2, "0")}</span><button className="track-main" onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span className="track-title"><strong>{song.title}</strong><small>{artist}</small></span></button><span className="muted hide-mobile track-meta"><span>{song.album}</span>{song.source && <a href={song.source} target="_blank" rel="noreferrer">{song.license || "Source"} · {song.sourceLabel || "Source"}</a>}</span><span className="muted hide-mobile">{secondsToTime(song.duration)}</span><button className={`bare-btn heart ${favorites.includes(song.id) ? "active" : ""}`} onClick={() => onFavorite(song.id)} title="Favorite"><Heart size={18} fill={favorites.includes(song.id) ? "currentColor" : "none"} /></button><button className="row-play" onClick={() => onPlay(song.id)} title={`Play ${song.title}`}><Play size={16} /></button></div>; })}</div></section>;
+  return <section className="section"><div className="section-head"><h2>{title}</h2><span className="muted">{songs.length} {trackLabel}</span></div><div className="track-list">{songs.length === 0 && <div className="empty-state muted">{empty || "No songs found."}</div>}{songs.map((song, index) => { const artist = song.artistId ? getArtist(song.artistId)?.name : song.artist; const [primaryTag] = collectionTagsFor(song); return <div className="track-row" key={song.id}><span className="track-number">{String(index + 1).padStart(2, "0")}</span><button className="track-main" onClick={() => onPlay(song.id)}><img src={song.cover} alt="" /><span className="track-title"><strong>{song.title}</strong><small>{artist}</small></span></button><span className="muted hide-mobile track-meta"><span>{song.album}{primaryTag ? ` · ${primaryTag}` : ""}</span>{song.source && <a href={song.source} target="_blank" rel="noreferrer">{song.license || "Source"} · {song.sourceLabel || "Source"}</a>}</span><span className="muted hide-mobile">{secondsToTime(song.duration)}</span><button className={`bare-btn heart ${favorites.includes(song.id) ? "active" : ""}`} onClick={() => onFavorite(song.id)} title="Favorite"><Heart size={18} fill={favorites.includes(song.id) ? "currentColor" : "none"} /></button><button className="row-play" onClick={() => onPlay(song.id)} title={`Play ${song.title}`}><Play size={16} /></button></div>; })}</div></section>;
 }
 
 function Albums({ title = "Albums", songs = seedSongs, onPlay }) {
@@ -451,7 +464,13 @@ function Albums({ title = "Albums", songs = seedSongs, onPlay }) {
   }, new Map()).values()).slice(0, 6);
   return <section className="section"><div className="section-head"><h2>{title}</h2><Disc3 size={20} /></div><div className="album-grid">{catalog.map((album) => <article className="album-card" key={album.id}><button onClick={() => onPlay(album.songId)}><img src={album.cover} alt="" /><h3>{album.title}</h3><p>{album.artist}</p></button></article>)}</div></section>;
 }
-function Playlists({ onPlay }) { return <section className="section"><div className="section-head"><h2>Playlists</h2><Library size={20} /></div><div className="playlist-grid">{playlists.map((playlist) => <button className="playlist-card" key={playlist.id} onClick={() => onPlay(playlist.songIds[0])}><Library size={22} /><strong>{playlist.title}</strong><span>{playlist.description}</span><small>{playlist.songIds.length} songs</small></button>)}</div></section>; }
+function Playlists({ songs = seedSongs, onPlay, onSelectTag }) {
+  const cards = playlists.map((playlist) => {
+    const playlistSongs = songs.filter((song) => playlist.songIds.includes(song.id) || (playlist.tag && collectionTagsFor(song).includes(playlist.tag)));
+    return { ...playlist, songs: playlistSongs, firstSongId: playlistSongs[0]?.id || playlist.songIds[0] };
+  });
+  return <section className="section"><div className="section-head"><h2>Collection Tags</h2><Library size={20} /></div><div className="playlist-grid">{cards.map((playlist) => <button className="playlist-card" key={playlist.id} onClick={() => playlist.tag ? onSelectTag?.(playlist.tag) : onPlay(playlist.firstSongId)}><Library size={22} /><strong>{playlist.title}</strong><span>{playlist.description}</span><small>{playlist.songs.length || playlist.songIds.length} songs{playlist.tag ? ` · ${playlist.tag}` : ""}</small></button>)}</div></section>;
+}
 function Lyrics({ title, song, artist, activeIndex }) { return <section className="section lyrics-panel"><div className="section-head"><div><h2>{title}</h2><p className="muted">{song.title} · {artist?.name || song.artist}</p></div><Mic2 size={20} /></div><div className="lyrics">{(song.lyrics || []).map((line, index) => <button className={`lyric-line ${index === activeIndex ? "active" : ""}`} key={`${line.time}-${line.text}`}>{line.text}</button>)}</div></section>; }
 function Artists({ songs, useCloudCatalog, selectedArtist, onSelect, onPlay, followedArtists, onFollow }) {
   const artistList = useCloudCatalog ? Array.from(songs.reduce((items, song) => {
