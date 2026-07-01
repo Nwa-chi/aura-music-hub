@@ -979,6 +979,10 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
     missingLyrics.length ? `${missingLyrics.length} track${missingLyrics.length === 1 ? "" : "s"} missing synced lyrics` : "",
   ].filter(Boolean);
 
+  function jumpToAdminSection(sectionId) {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   async function publishRelease() {
     if (publishBlockers.length) {
       setPublishState({ status: "blocked", message: "Resolve the release blockers before publishing." });
@@ -1061,18 +1065,18 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
       </div>
     </section>}
     <div className="admin-kpi-grid">
-      <AdminStatCard icon={Music2} label="Published catalog" value={published.length} detail={`${uniqueArtists.size} artists represented`} />
-      <AdminStatCard icon={CalendarClock} label="Release queue" value={pending.length} detail={`${rejected.length} rejected items need owner attention`} tone="warn" />
-      <AdminStatCard icon={Users} label="Listener signals" value={listeningEvents.length} detail={`${completionRate}% completion · ${skipRate}% skips`} />
-      <AdminStatCard icon={Shield} label="Cloud-controlled" value={cloudRows.length} detail="Rows backed by Supabase moderation" />
-      <AdminStatCard icon={Users} label="User accounts" value={adminStats.users ?? 0} detail="Supabase profile records visible to the owner" />
-      <AdminStatCard icon={Flag} label="Open reports" value={adminStats.reports ?? reports.length} detail="Copyright, identity, lyrics, and content reports" tone="warn" />
-      <AdminStatCard icon={Trash2} label="Deletion queue" value={adminStats.deletionRequests ?? deletionRequests.length} detail="Account/data deletion requests waiting for owner action" tone="warn" />
-      <AdminStatCard icon={Activity} label="Private changes" value={adminStats.ownerChanges ?? ownerChangeEvents.length} detail="Owner-only change events hidden from public listeners" />
-      <AdminStatCard icon={Download} label="Storage estimate" value={`${adminStats.storageMb ?? Math.round(cloudRows.length * 4.5)} MB`} detail="Catalog storage estimate until R2 usage is wired in" />
+      <AdminStatCard icon={Music2} label="Published catalog" value={published.length} detail={`${uniqueArtists.size} artists represented`} onClick={() => jumpToAdminSection("admin-catalog-table")} />
+      <AdminStatCard icon={CalendarClock} label="Release queue" value={pending.length} detail={`${rejected.length} rejected items need owner attention`} tone="warn" onClick={() => jumpToAdminSection("admin-release-pipeline")} />
+      <AdminStatCard icon={Users} label="Listener signals" value={listeningEvents.length} detail={`${completionRate}% completion · ${skipRate}% skips`} onClick={() => jumpToAdminSection("admin-audience-pulse")} />
+      <AdminStatCard icon={Shield} label="Cloud-controlled" value={cloudRows.length} detail="Rows backed by Supabase moderation" onClick={() => jumpToAdminSection("admin-catalog-sources")} />
+      <AdminStatCard icon={Users} label="User accounts" value={adminStats.users ?? 0} detail="Supabase profile records visible to the owner" onClick={() => jumpToAdminSection("admin-account-requests")} />
+      <AdminStatCard icon={Flag} label="Open reports" value={adminStats.reports ?? reports.length} detail="Copyright, identity, lyrics, and content reports" tone="warn" onClick={() => jumpToAdminSection("admin-trust-queue")} />
+      <AdminStatCard icon={Trash2} label="Deletion queue" value={adminStats.deletionRequests ?? deletionRequests.length} detail="Account/data deletion requests waiting for owner action" tone="warn" onClick={() => jumpToAdminSection("admin-account-requests")} />
+      <AdminStatCard icon={Activity} label="Private changes" value={adminStats.ownerChanges ?? ownerChangeEvents.length} detail="Owner-only change events hidden from public listeners" onClick={() => jumpToAdminSection("admin-private-change-watch")} />
+      <AdminStatCard icon={Download} label="Storage estimate" value={`${adminStats.storageMb ?? Math.round(cloudRows.length * 4.5)} MB`} detail="Catalog storage estimate until R2 usage is wired in" onClick={() => jumpToAdminSection("admin-catalog-sources")} />
     </div>
     <div className="admin-layout">
-      <section className="admin-panel admin-wide change-watch-panel">
+      <section id="admin-private-change-watch" className="admin-panel admin-wide change-watch-panel">
         <div className="section-head">
           <div>
             <h2>Private change watch</h2>
@@ -1090,7 +1094,7 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
           <div className="change-feed">{privateChangeFeed.length === 0 && <p className="muted">No private changes recorded yet.</p>}{privateChangeFeed.map((item) => <OwnerChangeRow key={item.id} item={item} />)}</div>
         </div>
       </section>
-      <section className="admin-panel admin-wide">
+      <section id="admin-release-pipeline" className="admin-panel admin-wide">
         <div className="section-head">
           <div>
             <h2>Release pipeline</h2>
@@ -1104,31 +1108,31 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
           <AdminPipelineCard title="Published" songs={published.slice(0, 4)} empty="No published releases yet." onPlay={onPlay} />
         </div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-operations" className="admin-panel">
         <div className="section-head"><h2>Operations</h2><Activity size={20} /></div>
         <div className="action-list">{operations.map((item) => <AdminActionItem key={item.title} item={item} />)}</div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-trust-queue" className="admin-panel">
         <div className="section-head"><h2>Trust queue</h2><Flag size={20} /></div>
         <div className="trust-list">{reports.length === 0 && <p className="muted">No content reports yet.</p>}{reports.slice(0, 5).map((report) => <AdminTrustRow key={report.id} label={report.reason || "Report"} title={report.song_title || report.songId || "Reported content"} detail={report.status || "open"} date={report.created_at || report.createdAt} />)}</div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-account-requests" className="admin-panel">
         <div className="section-head"><h2>Account requests</h2><Trash2 size={20} /></div>
         <div className="trust-list">{deletionRequests.length === 0 && <p className="muted">No deletion requests yet.</p>}{deletionRequests.slice(0, 5).map((request) => <AdminTrustRow key={request.id} label={request.status || "requested"} title={request.email || "Account"} detail="Data deletion" date={request.created_at || request.createdAt} />)}</div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-audit-log" className="admin-panel">
         <div className="section-head"><h2>Owner audit log</h2><FileCheck2 size={20} /></div>
         <div className="trust-list">{auditLogs.length === 0 && <p className="muted">Publish, reject, delete, and account actions will appear here.</p>}{auditLogs.slice(0, 6).map((log) => <AdminTrustRow key={log.id} label={log.action || "action"} title={log.entity_type || "catalog"} detail={log.entity_id || "AURA"} date={log.created_at || log.createdAt} />)}</div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-release-log" className="admin-panel">
         <div className="section-head"><h2>Release log</h2><Megaphone size={20} /></div>
         <div className="trust-list">{releaseLogs.length === 0 && <p className="muted">Saved versions and manual publish notes will appear here after backend release logging is connected.</p>}{releaseLogs.slice(0, 6).map((log) => <AdminTrustRow key={log.id} label={log.status || "release"} title={log.version || "Version"} detail={log.notes || "Owner release record"} date={log.created_at || log.createdAt} />)}</div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-audience-pulse" className="admin-panel">
         <div className="section-head"><h2>Audience pulse</h2><Radio size={20} /></div>
         <div className="insight-list">{recentActivity.length === 0 && <p className="muted">No listener activity yet. Plays, skips, favorites, and completed songs will appear here.</p>}{recentActivity.map((event) => <div className="insight-row" key={`${event.songId}-${event.type}-${event.at}`}><span>{event.type}</span><strong>{event.song.title}</strong><small>{shortDate(event.at)}</small></div>)}</div>
       </section>
-      <section className="admin-panel admin-wide">
+      <section id="admin-moderation-desk" className="admin-panel admin-wide">
         <div className="section-head">
           <div>
             <h2>Moderation desk</h2>
@@ -1138,19 +1142,19 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
         </div>
         <div className="admin-list">{reviewQueue.length === 0 && <p className="empty-state muted">No uploads are waiting for review.</p>}{reviewQueue.map((song) => <AdminSongRow key={song.id} song={song} onPlay={onPlay} onModerate={onModerate} />)}</div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-top-tracks" className="admin-panel">
         <div className="section-head"><h2>Top tracks</h2><TrendingUp size={20} /></div>
         <div className="track-insight-list">{topTracks.map((item) => <AdminTrackInsight key={item.song.id} item={item} onPlay={onPlay} />)}</div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-genre-demand" className="admin-panel">
         <div className="section-head"><h2>Genre demand</h2><BarChart3 size={20} /></div>
         <div className="insight-list">{activeGenres.map(([genre, count]) => <div className="insight-bar" key={genre}><span>{genre}</span><meter min="0" max={Math.max(...activeGenres.map(([, value]) => value), 1)} value={count} /><strong>{count}</strong></div>)}</div>
       </section>
-      <section className="admin-panel">
+      <section id="admin-catalog-sources" className="admin-panel">
         <div className="section-head"><h2>Catalog sources</h2><Disc3 size={20} /></div>
         <div className="insight-list">{sourceRows.map((row) => <div className="source-row" key={row.source}><span>{row.label}</span><meter min="0" max={maxSourceCount} value={row.count} /><strong>{row.count}</strong></div>)}</div>
       </section>
-      <section className="admin-panel admin-wide">
+      <section id="admin-catalog-table" className="admin-panel admin-wide">
         <div className="section-head">
           <div>
             <h2>Catalog command table</h2>
@@ -1164,8 +1168,8 @@ function AdminDashboard({ songs, uploads, listeningEvents, reports = [], deletio
   </section>;
 }
 
-function AdminStatCard({ icon: Icon, label, value, detail, tone = "brand" }) {
-  return <article className={`admin-stat-card ${tone}`}><div><span>{label}</span><strong>{value}</strong></div><Icon size={22} /><small>{detail}</small></article>;
+function AdminStatCard({ icon: Icon, label, value, detail, tone = "brand", onClick }) {
+  return <button className={`admin-stat-card ${tone}`} type="button" onClick={onClick} aria-label={`Open ${label}`}><div><span>{label}</span><strong>{value}</strong></div><Icon size={22} /><small>{detail}</small></button>;
 }
 
 function AdminActionItem({ item }) {

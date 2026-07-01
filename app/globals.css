@@ -173,7 +173,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .admin-health meter::-webkit-meter-optimum-value, .insight-bar meter::-webkit-meter-optimum-value, .source-row meter::-webkit-meter-optimum-value { border-radius: 999px; background: var(--brand); }
 .admin-status { margin: 0; }
 .admin-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.admin-stat-card { min-width: 0; min-height: 122px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--panel); }
+.admin-stat-card { min-width: 0; min-height: 122px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 16px; color: var(--text); background: var(--panel); text-align: left; cursor: pointer; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease; }
+.admin-stat-card:hover { transform: translateY(-2px); border-color: rgba(56, 189, 248, 0.5); background: var(--panel-2); }
+.admin-stat-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .admin-stat-card svg { color: var(--brand); }
 .admin-stat-card.warn svg { color: #facc15; }
 .admin-stat-card span, .admin-stat-card small { color: var(--muted); }
