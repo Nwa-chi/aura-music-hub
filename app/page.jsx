@@ -1001,10 +1001,8 @@ export default function HomePage() {
   }
 
   function openNowPlaying() {
-    setView("home");
-    window.setTimeout(() => {
-      document.getElementById("now-playing")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 60);
+    setView("nowPlaying");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const favoriteSongs = allSongs.filter((song) => favorites.includes(song.id));
@@ -1062,8 +1060,7 @@ export default function HomePage() {
           </form>
         </section>}
         {view === "admin" && isAdmin && <AdminDashboard songs={allSongs} uploads={uploads} listeningEvents={listeningEvents} reports={contentReports} deletionRequests={deletionRequests} auditLogs={auditLogs} releaseLogs={releaseLogs} ownerChangeEvents={ownerChangeEvents} adminStats={adminStats} versionInfo={versionInfo} statusMessage={adminStatus} onPlay={playSong} onModerate={updateSongStatus} />}
-        <MediaShowcase song={currentSong} artist={currentArtist} mediaRef={mediaRef} isPlaying={isPlaying} onToggle={togglePlay} onTimeUpdate={syncMediaTime} onLoadedMetadata={syncMediaDuration} onEnded={completeCurrentSong} />
-        <Lyrics title={t.lyrics} song={currentSong} artist={currentArtist} activeIndex={activeLyricIndex} currentTime={currentTime} onSeek={seekTo} />
+        {view === "nowPlaying" && <NowPlayingView song={currentSong} artist={currentArtist} songs={allSongs} queue={playQueue} mediaRef={mediaRef} isPlaying={isPlaying} activeLyricIndex={activeLyricIndex} currentTime={currentTime} onToggle={togglePlay} onTimeUpdate={syncMediaTime} onLoadedMetadata={syncMediaDuration} onEnded={completeCurrentSong} onSeek={seekTo} onPlay={playSong} />}
       </div>
 
       <footer className="player">
@@ -1144,6 +1141,40 @@ function Playlists({ songs = seedSongs, onPlay, onSelectTag }) {
   });
   return <section className="section"><div className="section-head"><h2>Collection Tags</h2><Library size={20} /></div><div className="playlist-grid">{cards.map((playlist) => <button className="playlist-card" key={playlist.id} onClick={() => playlist.tag ? onSelectTag?.(playlist.tag, playlist.songIds) : onPlay(playlist.firstSongId)}><Library size={22} /><strong>{playlist.title}</strong><span>{playlist.description}</span><small>{playlist.songs.length || playlist.songIds.length} songs{playlist.tag ? ` · ${playlist.tag}` : ""}</small></button>)}</div></section>;
 }
+
+function NowPlayingView({ song, artist, songs, queue, mediaRef, isPlaying, activeLyricIndex, currentTime, onToggle, onTimeUpdate, onLoadedMetadata, onEnded, onSeek, onPlay }) {
+  const availableIds = new Set(songs.map((item) => item.id));
+  const queueIds = (queue?.length ? queue : songs.map((item) => item.id)).filter((id) => availableIds.has(id));
+  const activeQueue = queueIds.length ? queueIds : songs.map((item) => item.id);
+  const currentIndex = Math.max(0, activeQueue.indexOf(song.id));
+  const upcoming = activeQueue
+    .slice(currentIndex + 1)
+    .concat(activeQueue.slice(0, currentIndex))
+    .map((id) => songs.find((item) => item.id === id))
+    .filter(Boolean)
+    .slice(0, 6);
+
+  return <section className="now-playing-view">
+    <div className="now-playing-main">
+      <MediaShowcase song={song} artist={artist} mediaRef={mediaRef} isPlaying={isPlaying} onToggle={onToggle} onTimeUpdate={onTimeUpdate} onLoadedMetadata={onLoadedMetadata} onEnded={onEnded} />
+      <Lyrics title="Live lyrics" song={song} artist={artist} activeIndex={activeLyricIndex} currentTime={currentTime} onSeek={onSeek} />
+    </div>
+    <aside className="now-playing-side">
+      <section className="panel current-track-card">
+        <p className="eyebrow">Current song</p>
+        <img src={song.cover} alt="" />
+        <h2>{song.title}</h2>
+        <p>{artist?.name || song.artist}</p>
+        <span>{song.album} · {isVideoSong(song) ? "Video" : "Audio"}</span>
+      </section>
+      <section className="panel up-next-card">
+        <div className="section-head"><h2>Up next</h2><ListChecks size={18} /></div>
+        <div className="up-next-list">{upcoming.map((item) => <button key={item.id} onClick={() => onPlay(item.id, activeQueue)}><img src={item.cover} alt="" /><span><strong>{item.title}</strong><small>{artistNameFor(item)} · {isVideoSong(item) ? "Video" : item.genre}</small></span></button>)}</div>
+      </section>
+    </aside>
+  </section>;
+}
+
 function MediaShowcase({ song, artist, mediaRef, isPlaying, onToggle, onTimeUpdate, onLoadedMetadata, onEnded }) {
   const video = isVideoSong(song);
   return <section className="section media-showcase" id="now-playing">
