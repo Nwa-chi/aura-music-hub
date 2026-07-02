@@ -1,15 +1,15 @@
 {
   "name": "AURA",
   "version": "1.0.2",
-  "publishedVersion": "1.0.1",
+  "publishedVersion": "1.0.2",
   "androidVersionCode": 3,
   "iosBuildNumber": 3,
-  "releasedAt": null,
+  "releasedAt": "2026-07-02T00:00:00.000Z",
   "preparedAt": "2026-07-02T00:00:00.000Z",
-  "status": "prepared",
+  "status": "published",
   "publicUrl": "https://www.auramusichub.com/",
   "reviewUrl": "/?ownerPreview=1",
-  "notes": "Owner publish workflow, private change review, interactive admin dashboard, corrected collection tags, video playback, and active synced lyrics",
+  "notes": "Owner publish workflow, private change review, interactive admin dashboard, corrected collection tags, video playback, active synced lyrics, and dedicated now playing view",
   "highlights": [
     {
       "title": "Owner build review",
@@ -40,6 +40,11 @@
       "title": "Music video mode",
       "status": "ready",
       "detail": "AURA can now play audio songs, video songs, and synchronized live lyric timelines from one shared player."
+    },
+    {
+      "title": "Dedicated now playing",
+      "status": "published",
+      "detail": "The bottom player opens a focused current-song page with media, live lyrics, and up-next queue context."
     }
   ],
   "artifacts": [
