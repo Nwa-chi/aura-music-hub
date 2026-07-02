@@ -1000,6 +1000,13 @@ export default function HomePage() {
     setCurrentTime(time);
   }
 
+  function openNowPlaying() {
+    setView("home");
+    window.setTimeout(() => {
+      document.getElementById("now-playing")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  }
+
   const favoriteSongs = allSongs.filter((song) => favorites.includes(song.id));
   const currentMediaUrl = mediaUrlFor(currentSong);
 
@@ -1061,7 +1068,7 @@ export default function HomePage() {
 
       <footer className="player">
         {!isVideoSong(currentSong) && <audio key={currentSong.id} ref={mediaRef} src={currentMediaUrl} x-webkit-airplay="allow" onTimeUpdate={syncMediaTime} onLoadedMetadata={syncMediaDuration} onEnded={completeCurrentSong} />}
-        <div className="mini"><img src={currentSong.cover} alt="" /><div className="track-title"><strong>{currentSong.title}</strong><span>{currentArtist?.name || currentSong.artist}{isVideoSong(currentSong) ? " · Video" : ""}</span></div></div>
+        <button className="mini now-playing-link" onClick={openNowPlaying} title="Open now playing" aria-label={`Open now playing for ${currentSong.title}`}><img src={currentSong.cover} alt="" /><div className="track-title"><strong>{currentSong.title}</strong><span>{currentArtist?.name || currentSong.artist}{isVideoSong(currentSong) ? " · Video" : " · Audio"}</span></div></button>
         <div className="controls"><div className="control-buttons"><button className="bare-btn" onClick={() => nextSong(-1)} title="Previous"><SkipBack size={18} /></button><button className="play-btn" onClick={togglePlay} title="Play or pause">{isPlaying ? <Pause size={20} /> : <Play size={20} />}</button><button className="bare-btn" onClick={() => nextSong(1)} title="Next"><SkipForward size={18} /></button>{supportsAirPlay && <button className="bare-btn device-btn" onClick={openAirPlay} title="AirPlay" aria-label="AirPlay"><Airplay size={17} /></button>}<button className="bare-btn device-btn" onClick={openCast} title="Cast" aria-label="Cast"><Cast size={17} /></button></div><div className="progress"><span>{secondsToTime(currentTime)}</span><input type="range" min="0" max={duration || 0} value={Math.min(currentTime, duration || 0)} onChange={(event) => seekTo(Number(event.target.value))} /><span>{secondsToTime(duration)}</span></div>{deviceStatus && <span className="device-status">{deviceStatus}</span>}</div>
         <label className="volume"><Volume2 size={17} /><input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => { const value = Number(event.target.value); setVolume(value); if (mediaRef.current) mediaRef.current.volume = value; }} /></label>
       </footer>
@@ -1138,18 +1145,18 @@ function Playlists({ songs = seedSongs, onPlay, onSelectTag }) {
   return <section className="section"><div className="section-head"><h2>Collection Tags</h2><Library size={20} /></div><div className="playlist-grid">{cards.map((playlist) => <button className="playlist-card" key={playlist.id} onClick={() => playlist.tag ? onSelectTag?.(playlist.tag, playlist.songIds) : onPlay(playlist.firstSongId)}><Library size={22} /><strong>{playlist.title}</strong><span>{playlist.description}</span><small>{playlist.songs.length || playlist.songIds.length} songs{playlist.tag ? ` · ${playlist.tag}` : ""}</small></button>)}</div></section>;
 }
 function MediaShowcase({ song, artist, mediaRef, isPlaying, onToggle, onTimeUpdate, onLoadedMetadata, onEnded }) {
-  if (!isVideoSong(song)) return null;
-  return <section className="section media-showcase">
+  const video = isVideoSong(song);
+  return <section className="section media-showcase" id="now-playing">
     <div className="section-head">
       <div>
-        <p className="eyebrow">Now playing video</p>
+        <p className="eyebrow">{video ? "Now playing video" : "Now playing audio"}</p>
         <h2>{song.title}</h2>
         <p className="muted">{artist?.name || song.artist} · {song.album}</p>
       </div>
-      <span className="media-badge">Video + live lyrics</span>
+      <span className="media-badge">{video ? "Video + live lyrics" : "Audio + live lyrics"}</span>
     </div>
     <div className="video-stage">
-      <video key={song.id} ref={mediaRef} src={mediaUrlFor(song)} poster={song.cover} playsInline x-webkit-airplay="allow" onTimeUpdate={onTimeUpdate} onLoadedMetadata={onLoadedMetadata} onEnded={onEnded} />
+      {video ? <video key={song.id} ref={mediaRef} src={mediaUrlFor(song)} poster={song.cover} playsInline x-webkit-airplay="allow" onTimeUpdate={onTimeUpdate} onLoadedMetadata={onLoadedMetadata} onEnded={onEnded} /> : <div className="audio-stage-art"><img src={song.cover} alt="" /><div><Disc3 size={26} /><strong>{song.title}</strong><span>{artist?.name || song.artist}</span></div></div>}
       <button className="video-overlay" onClick={onToggle} aria-label={isPlaying ? "Pause video" : "Play video"}>{isPlaying ? <Pause size={30} /> : <Play size={30} />}</button>
     </div>
   </section>;
